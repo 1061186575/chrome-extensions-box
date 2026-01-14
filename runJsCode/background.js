@@ -9,8 +9,34 @@ function autoRun(tab) {
                 if (!item.url) {
                     return executeScript(tab, item.code);
                 }
-                if (url.startsWith(item.url)) {
-                    executeScript(tab, item.code);
+
+                try {
+                    // 支持正则表达式匹配和普通字符串匹配
+                    let isMatch = false;
+
+                    // 检查是否是正则表达式（以 / 开头和结尾）
+                    if (item.url.startsWith('/') && item.url.endsWith('/')) {
+                        // 正则表达式格式：/pattern/
+                        try {
+                            const regexPattern = item.url.slice(1, -1); // 去掉前后的 /
+                            const regex = new RegExp(regexPattern);
+                            isMatch = regex.test(url);
+                            console.log(`Regex match: ${regexPattern} -> ${isMatch} for URL: ${url}`);
+                        } catch (e) {
+                            console.error('Invalid regex pattern:', item.url, e);
+                            // 如果正则表达式无效，回退到字符串匹配
+                            isMatch = url.startsWith(item.url);
+                        }
+                    } else {
+                        // 普通字符串匹配
+                        isMatch = url.startsWith(item.url);
+                    }
+
+                    if (isMatch) {
+                        executeScript(tab, item.code);
+                    }
+                } catch (e) {
+                    console.log(`自动运行代码执行出错`, e);
                 }
             }
         });
