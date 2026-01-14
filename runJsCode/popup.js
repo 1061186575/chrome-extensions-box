@@ -31,7 +31,6 @@ cookieNames.forEach(name => cookieRemove(name))`,
 
 // 执行脚本
 function executeScript(code) {
-    console.log(`executeScript`, code);
     // 向background发送消息执行脚本
     chrome.runtime.sendMessage({
         action: 'executeScript',
