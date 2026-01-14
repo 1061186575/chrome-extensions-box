@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            width: 750px;
+            min-height: 400px;
+            margin: 0;
+            padding: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fb;
+            color: #2c3e50;
+        }
+        
+        h3 {
+            margin-top: 0;
+            color: #1a202c;
+            font-weight: 600;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover {
+            background: #4338ca;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: #64748b;
+        }
+        
+        .btn-secondary:hover {
+            background: #475569;
+        }
+        
+        .btn-success {
+            background: #10b981;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .header-row {
+            display: flex;
+            margin-top: 10px;
+            padding: 10px 0;
+            font-weight: bold;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .data-row {
+            display: flex;
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .data-row textarea {
+            width: 200px;
+            margin-right: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            resize: vertical;
+            min-height: 60px;
+        }
+        
+        .data-row textarea:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        }
+        
+        .data-row textarea:disabled {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+        }
+        
+        .auto-run {
+            display: flex;
+            align-items: center;
+            margin-right: 10px;
+        }
+        
+        .auto-run input {
+            margin-right: 5px;
+        }
+        
+        .auto-run-title {
+            display: flex;
+            align-items: center;
+            width: 70px;
+            margin-right: 10px;
+        }
+        
+        .auto-run-title::after {
+            content: "?";
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            background: #4f46e5;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            font-size: 12px;
+            margin-left: 4px;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .remark {
+            width: 120px !important;
+        }
+        
+        .code {
+            width: 250px !important;
+        }
+        
+        .url {
+            width: 200px !important;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        #upload {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h3>执行代码</h3>
+    
+    <div class="controls">
+        <button id="addBtn">新增</button>
+        <button id="importBtn" class="btn-secondary">导入</button>
+        <button id="exportBtn" class="btn-secondary">导出</button>
+        <input type="file" id="upload">
+    </div>
+    
+    <div class="header-row">
+        <span class="remark">功能名</span>
+        <span class="code">代码</span>
+        <span class="url">URL (匹配的 URL 会自动执行)</span>
+        <span class="auto-run-title" title="切换到 URL 匹配到的标签页会自动执行">自动执行</span>
+        <span>操作</span>
+    </div>
+    
+    <div id="dataList"></div>
+    
+    <div id="addForm" class="data-row hidden">
+        <textarea id="addRemark" class="remark" placeholder="功能名"></textarea>
+        <textarea id="addCode" class="code" placeholder="JavaScript 代码"></textarea>
+        <textarea id="addUrl" class="url" placeholder="URL"></textarea>
+        <div class="auto-run">
+            <input type="checkbox" id="addAutoRun">
+            <label for="addAutoRun">启用</label>
+        </div>
+        <div class="actions">
+            <button id="saveAddBtn" class="btn-success">保存</button>
+            <button id="cancelAddBtn">取消</button>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

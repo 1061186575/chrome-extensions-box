@@ -1,0 +1,137 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>在线翻译</title>
+  <script src="./jquery.js"></script>
+  <style>
+    #all {
+      text-align: center;
+    }
+
+    .button-box {
+      width: 250px;
+      margin: 20px auto;
+    }
+
+    .button-box button {
+      width: 200px;
+      height: 40px;
+      font-size: 18px;
+      margin: 3px 0;
+    }
+
+    #auto-pronunciation {
+      margin-top: 5px;
+      background-color: rgb(50, 226, 203);
+    }
+
+    #translate {
+      background-color: #03A9F4;
+    }
+
+    #input,
+    #output {
+      width: 90%;
+      font-size: 18px;
+      margin-top: 10px;
+    }
+
+    @media screen and (max-width: 500px) {
+      #input,
+      #output {
+        width: 98%;
+        font-size: 16px;
+      }
+
+      #translate {
+        left: calc(50% - 100px);
+      }
+    }
+
+    .button-box #collect {
+      background: #36f46f;
+    }
+
+    .button-box #import,
+    .button-box #export {
+      width: 100px;
+      font-size: inherit;
+      height: 30px;
+    }
+
+    #showCollectWord {
+      text-align: left;
+      width: 80%;
+      font-size: 16px;
+      margin: auto;
+    }
+
+    #showCollectWord .key {
+      color: red;
+      /* width: 100px; */
+      display: inline-block;
+      cursor: pointer;
+      margin-right: 20px;
+    }
+
+    #showCollectWord .value {
+      color: #2196f3;
+      white-space: pre-wrap;
+    }
+
+    #showCollectWord hr {
+      border: 0.5px dashed #03A9F4;
+    }
+
+    /*有使用floatR样式*/
+    .floatR {
+      float: right;
+    }
+  </style>
+</head>
+
+<body>
+<div id="all">
+  <textarea autofocus id="input" cols="30" rows="6" placeholder="请输入你要翻译的内容:"></textarea>
+  <textarea id="output" cols="30" rows="6"></textarea>
+
+  <div class="button-box">
+    <div id="collect-success" style="visibility: hidden;color: #03A9F4;margin: 10px 0;">收藏成功</div>
+    <button id="collect">收藏</button>
+    <button id="translate">翻译</button>
+    <button id="auto-pronunciation">允许发音: 开</button> <!-- 自动发音 改成了=> 允许发音 -->
+
+    <div>
+      <input type="file" id="import-file" accept="application/json" style="display: none;">
+      <button id="import-btn" style="color: #4caf50;">导入单词</button>
+      <button id="export-btn" style="color: #2196F3;">导出单词</button>
+    </div>
+    <div>
+      <input id="playWordStartIndex" type="number" placeholder="播放起始单词位置, 默认1">
+      <button id="playWord-btn" style="color: #2196F3;">播放单词</button>
+    </div>
+  </div>
+
+  <h3>
+    单词列表
+    <button id="paraphrase-btn">显示释义</button>
+  </h3>
+  <div id="showCollectWord">
+
+  </div>
+  <br>
+  <br>
+</div>
+
+<script src="./index.js"></script>
+
+<!--这种方法在Google浏览器插件中不能用:-->
+<!--<button onclick="deleteWord()" >删除</button>-->
+
+</body>
+
+</html>

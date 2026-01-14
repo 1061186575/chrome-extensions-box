@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>stock</title>
+    <style>
+        body {
+            min-width: 545px;
+        }
+
+        body.dark {
+            /*background: #181c1f;*/
+            background: #293d4c;
+        }
+
+        body.dark #app {
+            color: skyblue;
+        }
+
+        body.dark button {
+            background: #181c1f;
+            color: skyblue;
+        }
+
+        .curTab {
+            color: rgb(184, 27, 121) !important;
+        }
+
+        #tabs {
+            margin-bottom: 10px;
+        }
+
+        #tabs button {
+            margin-right: 2px;
+        }
+
+        #app {
+            min-height: 300px;
+        }
+
+        .ranking {
+            white-space: pre;
+            height: 388px;
+            overflow: auto;
+            display: flex;
+            width: 500px;
+            /*justify-content: space-between;*/
+            font-size: 14px;
+        }
+
+        .curK {
+            color: #03A9F4;
+        }
+    </style>
+</head>
+
+<body class="dark">
+<!--docs: https://blog.csdn.net/weixin_45788869/article/details/106212578 -->
+<!--http://image.sinajs.cn/newchart/min/n/sh000001.gif -->
+
+<div>
+    <button id="changebg" style="margin-right: 5px;">light</button>
+    <span id="tabs"></span>
+</div>
+
+<div id="app">
+    <!--    <img src="http://image.sinajs.cn/newchart/min/n/sh000001.gif">-->
+</div>
+
+<br>
+<div id="footer">
+    <div>
+        <button id="add">add</button>
+        <button id="details">details</button>
+        <button id="ranking">ETF排名</button>
+        <button class="stockLine curK" data-type="min">分时图</button>
+        <button class="stockLine" data-type="daily">日K</button>
+        <button class="stockLine" data-type="weekly">周K</button>
+        <button class="stockLine" data-type="monthly">月K</button>
+    </div>
+    <div style="margin-top: 10px;">
+    </div>
+</div>
+
+<script src="index.js"></script>
+<script src="rank.js"></script>
+</body>
+
+</html>

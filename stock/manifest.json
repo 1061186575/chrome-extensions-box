@@ -1,0 +1,29 @@
+{
+//插件名
+  "name": "stock",
+//版本号
+  "version": "1.0",
+//内核版本
+  "manifest_version": 3,
+//描述
+  "description": "stock",
+//插件图标,128代表分辨率128*128,填最高的就行了,因为浏览器会自动调整的
+  "icons": {
+    "128": "icon.png"
+  },
+//背景html,就是你点击插件图标后出现的框框
+  "background": {
+    "service_worker": "background.js"
+  },
+//要加载的资源,如果你的html里需要引入js的话,请务必写上,还有我这里写的是相对路径,因为我把所有资源都放在一个文件夹下了
+  "action": {
+    "default_title": "",
+    "default_icon": "icon.png",
+    "default_popup": "index.html"
+  },
+//这是权限,意思就是你在哪个网页下可以访问的这个插件
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ]
+}

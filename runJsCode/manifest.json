@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "运行 JS 代码",
+  "version": "1.0",
+  "description": "运行任意 JS 代码",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs",
+    "storage"
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "执行代码"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": [
+    "<all_urls>"
+  ]
+}
