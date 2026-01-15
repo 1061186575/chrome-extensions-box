@@ -57,7 +57,7 @@ function executeScript(tab, code) {
                     window.$$ = document.querySelectorAll.bind(document);
 
                     window.delay = async function delay(ms) {
-                        return new Promise((resolve, reject) => {
+                        return new Promise((resolve) => {
                             setTimeout(resolve, ms);
                         });
                     }
@@ -78,45 +78,21 @@ function executeScript(tab, code) {
                 }
                 loadCode();
 
-                /**
-                 * 绕过 CSP 限制, 需要把代码定义在插件里面
-                 * @private
-                 */
-                // zhihu 暗黑模式
-                window.__zhihuDark = function zhihuDark() {
-                    function beArr(query) {
-                        return Array.from(document.querySelectorAll(query))
-                    }
+                // eval(str);
 
-                    let color = 'rgb(192 246 248)'
+                // var s = document.createElement('script')
+                // s.textContent = code;
+                // document.body.append(s);
+                // s.remove();
 
-                    if ($('.Topstory')) {
-                        $('.Topstory').style.background = '#000';
-                    }
+                // 可绕过 CSP 限制
+                const blob = new Blob([code], { type: 'application/javascript' });
+                const url = URL.createObjectURL(blob);
+                const script = document.createElement('script');
+                script.src = url;
+                document.head.appendChild(script);
+                URL.revokeObjectURL(url);
 
-                    beArr('.Card.TopstoryItem').forEach(ele => {
-                        ele.style.background = '#000'
-                        ele.style.color = 'rgb(142 149 163)'
-
-                        beArr('.ContentItem-title').forEach(d => d.style.color = color)
-                        beArr('.RichContent').forEach(d => d.style.color = color)
-                    })
-
-                    // 删除右侧边栏
-                    $('.css-1qyytj7')?.remove()
-                }
-
-
-                if (typeof window[code] === 'function') {
-                    console.log('运行插件内置的代码');
-                    window[code]();
-                } else {
-                    var s = document.createElement('script')
-                    s.textContent = code;
-                    document.body.append(s);
-                    s.remove();
-                    // eval(str);
-                }
             } catch (e) {
                 console.log(`runJsCode err`, e);
             }
