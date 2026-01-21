@@ -53,29 +53,38 @@ function executeScript(tab, code) {
         func: (code) => {
             try {
                 function loadCode() {
-                    window.$ = document.querySelector.bind(document);
-                    window.$$ = document.querySelectorAll.bind(document);
-
-                    window.delay = async function delay(ms) {
-                        return new Promise((resolve) => {
-                            setTimeout(resolve, ms);
-                        });
+                    if (!window._$) {
+                        window._$ = document.querySelector.bind(document);
+                    }
+                    if (!window._$$) {
+                        window._$$ = document.querySelectorAll.bind(document);
                     }
 
-                    window.copy = function copy(text) {
-                        if (text instanceof HTMLElement) {
-                            text = text.innerText
+                    if (!window._delay) {
+                        window._delay = async function delay(ms) {
+                            return new Promise((resolve) => {
+                                setTimeout(resolve, ms);
+                            });
                         }
-                        let input = document.createElement('textarea');
-                        document.body.appendChild(input);
-                        input.value = text;
-                        input.select();
-                        if (!document.execCommand('copy')) {
-                            alert('复制失败');
+                    }
+
+                    if (!window._copy) {
+                        window._copy = function copy(text) {
+                            if (text instanceof HTMLElement) {
+                                text = text.innerText
+                            }
+                            let input = document.createElement('textarea');
+                            document.body.appendChild(input);
+                            input.value = text;
+                            input.select();
+                            if (!document.execCommand('copy')) {
+                                alert('复制失败');
+                            }
+                            document.body.removeChild(input);
                         }
-                        document.body.removeChild(input);
                     }
                 }
+
                 loadCode();
 
                 // eval(str);
