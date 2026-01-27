@@ -49,20 +49,20 @@ function checkRefreshCallback(tab) {
         target: { tabId: tab.id },
         world: "MAIN",
         func: (preLoadCodeStr) => {
-            const refreshPending = sessionStorage.getItem('_refreshPending');
-            let callbackString = sessionStorage.getItem('_refreshCallback');
+            const refreshPending = sessionStorage.getItem('_onloadPending');
+            let callbackString = sessionStorage.getItem('_onloadCallback');
 
             if (refreshPending === 'true' && callbackString) {
                 console.log('检测到待执行的刷新回调');
 
                 try {
                     // 清除标记
-                    sessionStorage.removeItem('_refreshPending');
-                    sessionStorage.removeItem('_refreshCallback');
+                    sessionStorage.removeItem('_onloadPending');
+                    sessionStorage.removeItem('_onloadCallback');
 
                     // 恢复并执行回调函数
                     ;(function () {
-                        callbackString = `(${preLoadCodeStr})(); (${callbackString})();`
+                        callbackString = `(${preLoadCodeStr})(); \n(${callbackString})();`
                         const blob = new Blob([`;(function () { try {  ${callbackString}  } catch (e) { console.log('checkRefreshCallback error:', e) } })();`], { type: 'application/javascript' });
                         const url = URL.createObjectURL(blob);
                         const script = document.createElement('script');
@@ -71,7 +71,7 @@ function checkRefreshCallback(tab) {
                         URL.revokeObjectURL(url);
                     })();
                 } catch (e) {
-                    console.error('_refresh: 执行回调函数出错', e);
+                    console.error('_onload: 执行回调函数出错', e);
                 }
             }
         },
@@ -146,20 +146,18 @@ function preLoadCode() {
         }
     }
 
-    if (!window._refresh) {
-        window._refresh = function refresh(callback) {
+    if (!window._onload) {
+        // callback 会在页面刷新后立即执行
+        window._onload = function (callback) {
             if (typeof callback !== 'function') {
-                console.error('_refresh: callback 必须是一个函数');
+                console.error('_onload: callback 必须是一个函数');
                 return;
             }
 
             // 将回调函数序列化存储到 sessionStorage，并标记需要执行
             const callbackString = callback.toString();
-            sessionStorage.setItem('_refreshCallback', callbackString);
-            sessionStorage.setItem('_refreshPending', 'true');
-
-            // 刷新页面
-            location.reload();
+            sessionStorage.setItem('_onloadCallback', callbackString);
+            sessionStorage.setItem('_onloadPending', 'true');
         }
     }
 }
