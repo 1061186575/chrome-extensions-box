@@ -49,30 +49,35 @@ function checkRefreshCallback(tab) {
         target: { tabId: tab.id },
         world: "MAIN",
         func: (preLoadCodeStr) => {
-            const refreshPending = sessionStorage.getItem('_onloadPending');
-            let callbackString = sessionStorage.getItem('_onloadCallback');
+            try {
+                // 检查 URL 参数中是否有回调函数
+                const urlParams = new URLSearchParams(window.location.search);
+                const encodedCallback = urlParams.get('__runJsCode__onload_callback');
 
-            if (refreshPending === 'true' && callbackString) {
-                console.log('检测到待执行的刷新回调');
+                if (encodedCallback) {
+                    console.log('检测到 URL 参数中的回调函数');
+                    const callbackString = decodeURIComponent(atob(encodedCallback));
+                    console.log('解码后的回调函数:', callbackString);
 
-                try {
-                    // 清除标记
-                    sessionStorage.removeItem('_onloadPending');
-                    sessionStorage.removeItem('_onloadCallback');
+                    // 清理 URL 参数（不刷新页面）
+                    urlParams.delete('__runJsCode__onload_callback');
+                    const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
+                    history.replaceState(null, '', newUrl);
+                    console.log('已清理 URL 参数，新 URL:', newUrl);
 
-                    // 恢复并执行回调函数
-                    ;(function () {
-                        callbackString = `(${preLoadCodeStr})(); \n(${callbackString})();`
-                        const blob = new Blob([`;(function () { try {  ${callbackString}  } catch (e) { console.log('checkRefreshCallback error:', e) } })();`], { type: 'application/javascript' });
-                        const url = URL.createObjectURL(blob);
-                        const script = document.createElement('script');
-                        script.src = url;
-                        document.head.appendChild(script);
-                        URL.revokeObjectURL(url);
-                    })();
-                } catch (e) {
-                    console.error('_onload: 执行回调函数出错', e);
+                    // 执行预加载代码和回调函数
+                    const combinedCode = `(${preLoadCodeStr})(); \n(${callbackString})();`;
+                    const blob = new Blob([`;(function () { try {  ${combinedCode}  } catch (e) { console.log('checkRefreshCallback error:', e) } })();`], { type: 'application/javascript' });
+                    const url = URL.createObjectURL(blob);
+                    const script = document.createElement('script');
+                    script.src = url;
+                    document.head.appendChild(script);
+                    URL.revokeObjectURL(url);
+
+                    console.log('回调函数执行完成');
                 }
+            } catch (e) {
+                console.error('_onload: 出错', e);
             }
         },
         args: [preLoadCode.toString()]
@@ -147,17 +152,26 @@ function preLoadCode() {
     }
 
     if (!window._onload) {
-        // callback 会在页面刷新后立即执行
-        window._onload = function (callback) {
+        // callback 会在页面跳转后立即执行
+        window._onload = function (url, callback) {
+            if (typeof url !== 'string') {
+                console.error('_onload: url 必须是字符串');
+                return;
+            }
             if (typeof callback !== 'function') {
                 console.error('_onload: callback 必须是一个函数');
                 return;
             }
 
-            // 将回调函数序列化存储到 sessionStorage，并标记需要执行
+            // 将回调函数序列化并编码为 URL 参数
             const callbackString = callback.toString();
-            sessionStorage.setItem('_onloadCallback', callbackString);
-            sessionStorage.setItem('_onloadPending', 'true');
+            const encodedCallback = btoa(encodeURIComponent(callbackString));
+
+            // 使用 URL 对象和 URLSearchParams 正确处理 URL
+            const urlObj = new URL(url, window.location.origin);
+            urlObj.searchParams.set('__runJsCode__onload_callback', encodedCallback);
+            const targetUrl = urlObj.toString();
+            location.href = targetUrl;
         }
     }
 }
