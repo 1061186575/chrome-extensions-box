@@ -51,7 +51,13 @@ function genStockText(res) {
 
 let stockCodeArr = JSON.parse(localStorage.getItem('stockCodeArr') || '[]')
 Promise.all(stockCodeArr.map((item) => getStock(item.code))).then(resList => {
-    console.log(`resList`, resList)
+    // console.log(`resList`, resList)
+    resList = resList
+        .sort((a, b) => b[32] - a[32])
+        .map(arr => {
+            arr[1] = arr[1].replace(/ETF.+/, 'ETF');
+            return arr
+        })
     document.getElementById('app').innerHTML = resList.map(res => genStockText(res)).join('')
 })
 
