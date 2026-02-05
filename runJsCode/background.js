@@ -50,31 +50,42 @@ function checkRefreshCallback(tab) {
         world: "MAIN",
         func: (preLoadCodeStr) => {
             try {
+                const _atob = str => decodeURIComponent(atob(str));
+
                 // 检查 URL 参数中是否有回调函数
                 const urlParams = new URLSearchParams(window.location.search);
                 const encodedCallback = urlParams.get('__runJsCode__onload_callback');
+                let callbackParams = urlParams.get('__runJsCode__callback_params');
 
                 if (encodedCallback) {
                     console.log('检测到 URL 参数中的回调函数');
-                    const callbackString = decodeURIComponent(atob(encodedCallback));
-                    console.log('解码后的回调函数:', callbackString);
+                    const callbackString = _atob(encodedCallback);
+                    if (callbackParams) {
+                        callbackParams = _atob(callbackParams);
+                        try {
+                            const params = JSON.parse(callbackParams);
+                            if (typeof params === 'string') {
+                                callbackParams = `"${params}"`
+                            }
+                        } catch (e) {
+                            console.error('_runJsCode: 解析回调参数出错', e);
+                        }
+                    }
 
                     // 清理 URL 参数（不刷新页面）
                     urlParams.delete('__runJsCode__onload_callback');
+                    urlParams.delete('__runJsCode__callback_params');
                     const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
                     history.replaceState(null, '', newUrl);
-                    console.log('已清理 URL 参数，新 URL:', newUrl);
 
                     // 执行预加载代码和回调函数
-                    const combinedCode = `(${preLoadCodeStr})(); \n(${callbackString})();`;
-                    const blob = new Blob([`;(function () { try {  ${combinedCode}  } catch (e) { console.log('checkRefreshCallback error:', e) } })();`], { type: 'application/javascript' });
+                    const combinedCode = `(${preLoadCodeStr})(); \n(${callbackString})(${callbackParams});`;
+                    const blob = new Blob([`;(function () { \ntry {\n${combinedCode}  \n} catch (e) { console.log('checkRefreshCallback error:', e) } })();`], { type: 'application/javascript' });
                     const url = URL.createObjectURL(blob);
                     const script = document.createElement('script');
                     script.src = url;
                     document.head.appendChild(script);
                     URL.revokeObjectURL(url);
-
-                    console.log('回调函数执行完成');
                 }
             } catch (e) {
                 console.error('_onload: 出错', e);
@@ -93,7 +104,6 @@ function executeScript(tab, code) {
         world: "MAIN", // 必须设置 MAIN 才能用 eval
         func: (preLoadCodeStr, code) => {
             try {
-
                 function safeRunCode(code) {
                     // eval(str);
                     // 可绕过部分 CSP 限制
@@ -153,8 +163,8 @@ function preLoadCode() {
 
     if (!window._onload) {
         // callback 会在页面跳转后立即执行
-        window._onload = function (url, callback, options = {}) {
-            const { newTabOpen, delayRun = 0 } = options;
+        window._onload = function (url, callback, callbackParams = undefined, runOptions = {}) {
+            const { newTabOpen } = runOptions;
             if (typeof url !== 'string') {
                 console.error('_onload: url 必须是字符串');
                 return;
@@ -163,19 +173,24 @@ function preLoadCode() {
                 console.error('_onload: callback 必须是一个函数');
                 return;
             }
-            if (typeof delayRun !== 'number') {
-                console.error('_onload: delayRun 必须是一个数字, 单位是毫秒');
+            const supportedTypes = ['undefined', 'boolean', 'number', 'string', 'object'];
+            if (!supportedTypes.includes(typeof callbackParams)) {
+                console.error(`_onload: callbackParams 只支持: ${supportedTypes} 类型`);
                 return;
             }
 
+            const _btoa = str => btoa(encodeURIComponent(str));
+
             // 将回调函数序列化并编码为 URL 参数
             const callbackString = callback.toString();
-            const encodedCallback = btoa(encodeURIComponent(callbackString));
+            const encodedCallback = _btoa(callbackString);
 
             // 使用 URL 对象和 URLSearchParams 正确处理 URL
             const urlObj = new URL(url, window.location.origin);
             urlObj.searchParams.set('__runJsCode__onload_callback', encodedCallback);
-            // urlObj.searchParams.set('__runJsCode__delay_run', String(delayRun));
+            if (callbackParams !== undefined && callbackParams !== null) {
+                urlObj.searchParams.set('__runJsCode__callback_params', _btoa(JSON.stringify(callbackParams)));
+            }
             const targetUrl = urlObj.toString();
 
             if (newTabOpen) {
