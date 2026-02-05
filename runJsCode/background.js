@@ -153,13 +153,18 @@ function preLoadCode() {
 
     if (!window._onload) {
         // callback 会在页面跳转后立即执行
-        window._onload = function (url, callback) {
+        window._onload = function (url, callback, options = {}) {
+            const { newTabOpen, delayRun = 0 } = options;
             if (typeof url !== 'string') {
                 console.error('_onload: url 必须是字符串');
                 return;
             }
             if (typeof callback !== 'function') {
                 console.error('_onload: callback 必须是一个函数');
+                return;
+            }
+            if (typeof delayRun !== 'number') {
+                console.error('_onload: delayRun 必须是一个数字, 单位是毫秒');
                 return;
             }
 
@@ -170,8 +175,14 @@ function preLoadCode() {
             // 使用 URL 对象和 URLSearchParams 正确处理 URL
             const urlObj = new URL(url, window.location.origin);
             urlObj.searchParams.set('__runJsCode__onload_callback', encodedCallback);
+            // urlObj.searchParams.set('__runJsCode__delay_run', String(delayRun));
             const targetUrl = urlObj.toString();
-            location.href = targetUrl;
+
+            if (newTabOpen) {
+                window.open(targetUrl);
+            } else {
+                location.href = targetUrl;
+            }
         }
     }
 }
