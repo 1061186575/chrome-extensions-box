@@ -19,7 +19,7 @@
   "action": {
     "default_title": "",
     "default_icon": "icon.png",
-    "default_popup": "index.html"
+    "default_popup": "quickView.html"
   },
 //这是权限,意思就是你在哪个网页下可以访问的这个插件
   "host_permissions": [

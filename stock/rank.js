@@ -46,18 +46,17 @@ function getRank(url, type) {
 
 let isReverse = false
 let rankingEle = document.getElementById('ranking')
-rankingEle.onclick = async function () {
-  let plateData = await plateRank(isReverse)
-  let plateStr = JSON.stringify(plateData, null, 2)
-  let ETFData = await ETFRank(isReverse)
-  let ETFStr = JSON.stringify(ETFData, null, 2)
+if (rankingEle) {
+  rankingEle.onclick = async function () {
+    let plateData = await plateRank(isReverse)
+    let plateStr = JSON.stringify(plateData, null, 2)
+    let ETFData = await ETFRank(isReverse)
+    let ETFStr = JSON.stringify(ETFData, null, 2)
     rankingEle.innerText = 'ETF排名' + (isReverse ? ' ↓' : ' ↑')
-  app.innerHTML = `<div class="ranking">
+    app.innerHTML = `<div class="ranking">
                       <div>板块:<br>${plateStr}</div>
                       <div>ETF:<br>${ETFStr}</div>
                     </div>`
-  isReverse = !isReverse
+    isReverse = !isReverse
+  }
 }
-
-
-

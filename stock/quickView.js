@@ -49,18 +49,29 @@ function genStockText(res) {
     return html
 }
 
-let stockCodeArr = JSON.parse(localStorage.getItem('stockCodeArr') || '[]')
-Promise.all(stockCodeArr.map((item) => getStock(item.code))).then(resList => {
-    // console.log(`resList`, resList)
-    resList = resList
-        .sort((a, b) => b[32] - a[32])
-        .map(arr => {
-            arr[1] = arr[1].replace(/ETF.+/, 'ETF');
-            return arr
-        })
-    document.getElementById('app').innerHTML = resList.map(res => genStockText(res)).join('')
-})
+function render() {
+    let stockCodeArr = JSON.parse(localStorage.getItem('stockCodeArr') || '[]')
+    Promise.all(stockCodeArr.map((item) => getStock(item.code))).then(resList => {
+        // console.log(`resList`, resList)
+        resList = resList
+            .sort((a, b) => b[32] - a[32])
+            .map(arr => {
+                arr[1] = arr[1].replace(/ETF.+/, 'ETF');
+                return arr
+            })
+        document.getElementById('app').innerHTML = `<tr><td>自选:</td></tr>` + resList.map(res => genStockText(res)).join('')
+    })
+}
+render();
 
+async function renderRank() {
+    const top = await plateRank(false)
+    const bottom = await plateRank(true)
+    const r = arr => arr.slice(0, 3).map(d => Object.values(d).map(v => `<td>${v}</td>`).join('')).map(d => `<tr>${d}</tr>`).join('')
+    const str = `<tr><td>top:</td></tr> ${r(top)} <tr style="margin-top: 10px;"><td>bottom:</td></tr> ${r(bottom)}`
+    document.getElementById('rankRender').innerHTML = str
+}
+renderRank();
 
 document.getElementById('return').onclick = function () {
     location.href = '/index.html'
