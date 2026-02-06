@@ -1,5 +1,3 @@
-
-
 document.getElementById('return').addEventListener('click', function () {
     location.href = '/index.html'
 })
@@ -47,7 +45,7 @@ function genStockText(res) {
                     html += `<td>${d}%</td>`
                     break;
                 case '名称':
-                    html += `<td>${d}</td>`
+                    html += `<td data-url="https://quote.eastmoney.com/sz159632.html">${d}</td>`
                     break;
                 default:
                     html += key + ': ' + d + '<br>'
@@ -69,7 +67,10 @@ function render() {
                 arr[1] = arr[1].replace(/ETF.+/, 'ETF');
                 return arr
             })
-        document.getElementById('app').innerHTML = `<tr><td>自选:</td></tr>` + resList.map(res => genStockText(res)).join('')
+        document.getElementById('app').innerHTML = `<tr><td id="gotoDfcf"><a href="">自选:</a></td></tr>` + resList.map(res => genStockText(res)).join('')
+        document.getElementById('gotoDfcf').onclick = function () {
+            window.open("https://quote.eastmoney.com/zs399905.html")
+        }
     })
 }
 
@@ -96,8 +97,7 @@ async function renderRank() {
         const changePercent = values[1];
         return genTr(name, changePercent)
     }).join('')
-    const str = `<tr class="section-header"><td>涨幅榜:</td><td></td></tr> ${r(top)} <tr class="section-header bottom-header"><td>跌幅榜:</td><td></td></tr> ${r(bottom)}`
-    document.getElementById('plateRankRender').innerHTML = str
+    document.getElementById('plateRankRender').innerHTML = `<tr class="section-header"><td>涨幅榜:</td><td></td></tr> ${r(top)} <tr class="section-header bottom-header"><td>跌幅榜:</td><td></td></tr> ${r(bottom)}`
 }
 
 renderRank();
@@ -161,12 +161,12 @@ async function renderBTC() {
                 value: (+ETHItem.price.value / exchangeRate).toFixed(4),
                 url: 'https://gushitong.baidu.com/foreign/global-ETHUSD'
             }, ETHItem.ratio.value.replace('00%', '%'))
-            
+
             const BTCRenderEle = document.getElementById('BTCRender')
             BTCRenderEle.innerHTML = title + BTCPrice + EthPrice
 
             // 添加事件委托
-            BTCRenderEle.addEventListener('click', function(event) {
+            BTCRenderEle.addEventListener('click', function (event) {
                 const target = event.target;
                 if (target.tagName === 'TD' && target.hasAttribute('data-url')) {
                     const url = target.getAttribute('data-url');
@@ -177,5 +177,6 @@ async function renderBTC() {
         }
     }
 }
+
 renderBTC();
 
