@@ -1,8 +1,8 @@
 
 
-document.getElementById('return').onclick = function () {
+document.getElementById('return').addEventListener('click', function () {
     location.href = '/index.html'
-}
+})
 
 
 function getStock(stockCode) {
@@ -103,9 +103,17 @@ async function renderRank() {
 renderRank();
 
 function genTr(...arr) {
-    return `<tr>${arr.map(d => {
-        const firstChar = String(d)[0];
-        const lastChar = String(d)[String(d).length - 1];
+    let html = '<tr>';
+
+    arr.forEach((item) => {
+        let value = item;
+        let url = null;
+        if (typeof item === 'object' && item !== null) {
+            value = item.value;
+            url = item.url;
+        }
+        const firstChar = String(value)[0];
+        const lastChar = String(value)[String(value).length - 1];
         let colorClass = '';
         if (firstChar === '-') {
             colorClass = 'negative';
@@ -114,8 +122,17 @@ function genTr(...arr) {
         } else if (/\d/.test(firstChar) && lastChar === '%') {
             colorClass = 'positive';
         }
-        return `<td class="${colorClass}">${d}</td>`
-    }).join('')}</tr>`
+
+        // 如果有URL，添加data-url属性和点击样式
+        if (url) {
+            html += `<td class="${colorClass}" data-url="${url}" style="cursor: pointer;">${value}</td>`;
+        } else {
+            html += `<td class="${colorClass}">${value}</td>`;
+        }
+    });
+
+    html += '</tr>';
+    return html;
 }
 
 async function renderBTC() {
@@ -128,7 +145,10 @@ async function renderBTC() {
         let ETHItem = ETHUSDRes.Result.corrCode.front.find(d => d.code === 'ETHCNY');
         if (BTCItem && ETHItem) {
             let title = genTr('BTC and Eth')
-            let BTCPrice = genTr(BTCItem.name, BTCItem.price.value, BTCItem.ratio.value.replace('00%', '%'))
+            let BTCPrice = genTr(BTCItem.name, {
+                value: BTCItem.price.value,
+                url: 'https://gushitong.baidu.com/foreign/global-BTCUSD'
+            }, BTCItem.ratio.value.replace('00%', '%'))
 
             let exchangeRate = 7
             try {
@@ -137,8 +157,23 @@ async function renderBTC() {
             } catch (e) {
                 console.log(`e`, e)
             }
-            let EthPrice = genTr('Eth 美元', (+ETHItem.price.value / exchangeRate).toFixed(4), ETHItem.ratio.value.replace('00%', '%'))
-            document.getElementById('BTCRender').innerHTML = title + BTCPrice + EthPrice
+            let EthPrice = genTr('Eth 美元', {
+                value: (+ETHItem.price.value / exchangeRate).toFixed(4),
+                url: 'https://gushitong.baidu.com/foreign/global-ETHUSD'
+            }, ETHItem.ratio.value.replace('00%', '%'))
+            
+            const BTCRenderEle = document.getElementById('BTCRender')
+            BTCRenderEle.innerHTML = title + BTCPrice + EthPrice
+
+            // 添加事件委托
+            BTCRenderEle.addEventListener('click', function(event) {
+                const target = event.target;
+                if (target.tagName === 'TD' && target.hasAttribute('data-url')) {
+                    const url = target.getAttribute('data-url');
+                    window.open(url);
+                }
+            });
+
         }
     }
 }
