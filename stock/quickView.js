@@ -1,18 +1,9 @@
 
-const stockMap = {
-    1: '名称',
-    32: '涨跌%',
+
+document.getElementById('return').onclick = function () {
+    location.href = '/index.html'
 }
-// const list = [
-//     {
-//         name: '纳斯达克ETF',
-//         code: 'sh513300'
-//     },
-//     {
-//         name: '半导体ETF',
-//         code: 'sh512480'
-//     },
-// ]
+
 
 function getStock(stockCode) {
     return fetch('http://qt.gtimg.cn/q=' + stockCode)
@@ -24,7 +15,22 @@ function getStock(stockCode) {
 function genStockText(res) {
     // http://image.sinajs.cn/newchart/min/n/sh000001.gif
     // http://image.sinajs.cn/newchart/daily/n/sh000001.gif
-    console.log(res)
+
+    const stockMap = {
+        1: '名称',
+        32: '涨跌%',
+    }
+    // const list = [
+    //     {
+    //         name: '纳斯达克ETF',
+    //         code: 'sh513300'
+    //     },
+    //     {
+    //         name: '半导体ETF',
+    //         code: 'sh512480'
+    //     },
+    // ]
+
     let html = ``
     html += '<tr>'
     res.forEach((d, i) => {
@@ -33,6 +39,10 @@ function genStockText(res) {
         if (key) {
             switch (key) {
                 case '涨跌%':
+                    const changePercent = parseFloat(d);
+                    const colorClass = changePercent >= 0 ? 'positive' : 'negative';
+                    html += `<td class="${colorClass}">${d}%</td>`
+                    break;
                 case '换手率':
                     html += `<td>${d}%</td>`
                     break;
@@ -45,7 +55,7 @@ function genStockText(res) {
         }
     })
     html += '</tr>'
-    console.log(`html`, html);
+    // console.log(`html`, html);
     return html
 }
 
@@ -62,17 +72,75 @@ function render() {
         document.getElementById('app').innerHTML = `<tr><td>自选:</td></tr>` + resList.map(res => genStockText(res)).join('')
     })
 }
+
 render();
 
 async function renderRank() {
     const top = await plateRank(false)
     const bottom = await plateRank(true)
-    const r = arr => arr.slice(0, 3).map(d => Object.values(d).map(v => `<td>${v}</td>`).join('')).map(d => `<tr>${d}</tr>`).join('')
-    const str = `<tr><td>top:</td></tr> ${r(top)} <tr style="margin-top: 10px;"><td>bottom:</td></tr> ${r(bottom)}`
-    document.getElementById('rankRender').innerHTML = str
+    /*
+    top = [
+        {
+            "名称": "贵金属",
+            "涨跌": "-6.57%"
+        },
+        {
+            "名称": "光伏设备",
+            "涨跌": "-4.87%"
+        },
+    ]
+     */
+    const r = arr => arr.slice(0, 5).map(d => {
+        const values = Object.values(d);
+        const name = values[0];
+        const changePercent = values[1];
+        return genTr(name, changePercent)
+    }).join('')
+    const str = `<tr class="section-header"><td>涨幅榜:</td><td></td></tr> ${r(top)} <tr class="section-header bottom-header"><td>跌幅榜:</td><td></td></tr> ${r(bottom)}`
+    document.getElementById('plateRankRender').innerHTML = str
 }
+
 renderRank();
 
-document.getElementById('return').onclick = function () {
-    location.href = '/index.html'
+function genTr(...arr) {
+    return `<tr>${arr.map(d => {
+        const firstChar = String(d)[0];
+        const lastChar = String(d)[String(d).length - 1];
+        let colorClass = '';
+        if (firstChar === '-') {
+            colorClass = 'negative';
+        } else if (firstChar === '+') {
+            colorClass = 'positive';
+        } else if (/\d/.test(firstChar) && lastChar === '%') {
+            colorClass = 'positive';
+        }
+        return `<td class="${colorClass}">${d}</td>`
+    }).join('')}</tr>`
 }
+
+async function renderBTC() {
+    // https://gushitong.baidu.com/foreign/global-BTCUSD
+    // https://gushitong.baidu.com/foreign/global-ETHUSD
+    let BTCUSDRes = await fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=BTCUSD&finClientType=pc').then(res => res.json())
+    let ETHUSDRes = await fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=ETHUSD&finClientType=pc').then(res => res.json())
+    if (BTCUSDRes.ResultCode === '0' && ETHUSDRes.ResultCode === '0') {
+        let BTCItem = BTCUSDRes.Result.corrCode.front.find(d => d.code === 'BTCUSD' || d.name === '比特币美元');
+        let ETHItem = ETHUSDRes.Result.corrCode.front.find(d => d.code === 'ETHCNY');
+        if (BTCItem && ETHItem) {
+            let title = genTr('BTC and Eth')
+            let BTCPrice = genTr(BTCItem.name, BTCItem.price.value, BTCItem.ratio.value.replace('00%', '%'))
+
+            let exchangeRate = 7
+            try {
+                let USDCNYItem = ETHUSDRes.Result.corrCode.back.find(d => d.code === 'USDCNY')
+                exchangeRate = +USDCNYItem.price.value
+            } catch (e) {
+                console.log(`e`, e)
+            }
+            let EthPrice = genTr('Eth 美元', (+ETHItem.price.value / exchangeRate).toFixed(4), ETHItem.ratio.value.replace('00%', '%'))
+            document.getElementById('BTCRender').innerHTML = title + BTCPrice + EthPrice
+        }
+    }
+}
+renderBTC();
+
