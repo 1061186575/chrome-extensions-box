@@ -408,7 +408,7 @@ class UIManager {
 
             const a = document.createElement('a');
             a.href = url;
-            a.download = `插件导出数据-${Date.now()}.json`;
+            a.download = `运行 JS 代码插件导出数据-${Date.now()}.json`;
             document.body.appendChild(a);
             a.click();
 
