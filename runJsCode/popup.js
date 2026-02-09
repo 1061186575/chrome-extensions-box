@@ -26,7 +26,7 @@ function executeScript(code) {
 // 数据管理
 class DataManager {
     constructor() {
-        this.defaultCategories = ['全部', '脚本', '自动运行', '获取页面数据'];
+        this.allCategory = '全部';
     }
 
     add(item) {
@@ -73,29 +73,23 @@ class DataManager {
         });
     }
 
-    // 获取所有分类
-    getCategories() {
-        return new Promise((resolve) => {
-            chrome.storage.local.get(['categories'], (result) => {
-                resolve(result.categories || this.defaultCategories);
-            });
-        });
-    }
+    // 从代码列表中动态获取分类
+    async getCategories() {
+        const list = await this.getAll();
+        const categories = [...new Set(list.map(item => item.category || this.allCategory))];
 
-    // 保存分类
-    saveCategories(categories) {
-        return new Promise((resolve) => {
-            chrome.storage.local.set({categories}, () => {
-                resolve();
-            });
-        });
+        // 确保 allCategory 总是在第一位
+        if (categories.includes(this.allCategory)) {
+            categories.splice(categories.indexOf(this.allCategory), 1);
+        }
+        return [this.allCategory, ...categories.sort()];
     }
 
     // 获取当前选中的分类
     getCurrentCategory() {
         return new Promise((resolve) => {
             chrome.storage.local.get(['currentCategory'], (result) => {
-                resolve(result.currentCategory || '全部');
+                resolve(result.currentCategory || this.allCategory);
             });
         });
     }
@@ -114,7 +108,7 @@ class DataManager {
 class UIManager {
     constructor(dataManager) {
         this.dataManager = dataManager;
-        this.currentCategory = '全部';
+        this.currentCategory = dataManager.allCategory;
         this.init();
     }
 
@@ -132,7 +126,7 @@ class UIManager {
         let needUpdate = false;
         list.forEach(item => {
             if (!item.category) {
-                item.category = '全部';
+                item.category = this.dataManager.allCategory;
                 needUpdate = true;
             }
         });
@@ -233,7 +227,7 @@ class UIManager {
         this.dataManager.getAll().then(list => {
             list.forEach((item, index) => {
                 // 根据当前选中的分类进行筛选
-                if (this.currentCategory === '全部' || item.category === this.currentCategory) {
+                if (this.currentCategory === this.dataManager.allCategory || item.category === this.currentCategory) {
                     const row = this.createDataRow(item, index);
                     listContainer.appendChild(row);
                 }
@@ -253,7 +247,7 @@ class UIManager {
             </div>
             <textarea class="url" disabled>${item.url || ''}</textarea>
             <div class="category">
-                <input type="text" class="category-input" value="${item.category || '全部'}" disabled style="width: 100%; padding: 4px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;">
+                <input type="text" class="category-input" value="${item.category || this.dataManager.allCategory}" disabled style="width: 100%; padding: 4px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;">
             </div>
             <div class="actions">
                 <button class="run-btn" data-index="${index}">执行</button>
@@ -294,7 +288,7 @@ class UIManager {
     }
 
     async saveNewItem() {
-        const category = document.getElementById('addCategory').value.trim() || '全部';
+        const category = document.getElementById('addCategory').value.trim() || this.dataManager.allCategory;
 
         const newItem = {
             remark: document.getElementById('addRemark').value,
@@ -304,20 +298,11 @@ class UIManager {
             category: category
         };
 
-        // 如果是新分类，添加到分类列表中
-        if (category !== '全部') {
-            const categories = await this.dataManager.getCategories();
-            if (!categories.includes(category)) {
-                categories.push(category);
-                await this.dataManager.saveCategories(categories);
-                await this.renderCategories();
-            }
-        }
-
-        this.dataManager.add(newItem).then(() => {
-            this.renderList();
-            this.hideAddForm();
-        });
+        await this.dataManager.add(newItem);
+        // 重新渲染分类和列表
+        await this.renderCategories();
+        this.renderList();
+        this.hideAddForm();
     }
 
     editItem(rowElement, index) {
@@ -347,7 +332,7 @@ class UIManager {
         const textareas = rowElement.querySelectorAll('textarea');
         const checkbox = rowElement.querySelector('input[type="checkbox"]');
         const categoryInput = rowElement.querySelector('.category-input');
-        const category = categoryInput.value.trim() || '全部';
+        const category = categoryInput.value.trim() || this.dataManager.allCategory;
 
         const updatedItem = {
             remark: textareas[0].value,
@@ -357,26 +342,18 @@ class UIManager {
             category: category
         };
 
-        // 如果是新分类，添加到分类列表中
-        if (category !== '全部') {
-            const categories = await this.dataManager.getCategories();
-            if (!categories.includes(category)) {
-                categories.push(category);
-                await this.dataManager.saveCategories(categories);
-                await this.renderCategories();
-            }
-        }
-
-        this.dataManager.update(index, updatedItem).then(() => {
-            this.renderList();
-        });
+        await this.dataManager.update(index, updatedItem);
+        // 重新渲染分类和列表
+        await this.renderCategories();
+        this.renderList();
     }
 
-    deleteItem(index) {
+    async deleteItem(index) {
         if (confirm('确定要删除这项吗？')) {
-            this.dataManager.delete(index).then(() => {
-                this.renderList();
-            });
+            await this.dataManager.delete(index);
+            // 重新渲染分类和列表
+            await this.renderCategories();
+            this.renderList();
         }
     }
 
@@ -398,6 +375,7 @@ class UIManager {
                         }
                     }
 
+                    await this.renderCategories();
                     this.renderList();
                     alert(`成功导入 ${importedCount} 条数据`);
                 });
