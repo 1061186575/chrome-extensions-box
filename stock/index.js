@@ -184,18 +184,41 @@ function runCmd(code) {
   return false
 }
 
+function addStockPrefix(code) {
+  if (!code || typeof code !== 'string') return code;
+  code = code.trim().toLowerCase();
+
+  const firstChar = code.charAt(0);
+
+  // 优先判断北交所的新代码
+  if (code.startsWith('920')) {
+    return 'bj';
+  }
+
+  // 深交所：0,1,2,3开头
+  if ('0123'.includes(firstChar)) {
+    return 'sz' + code;
+  }
+
+  // 上交所：5,6,7,9开头（科创板688也是上交所）
+  if ('5679'.includes(firstChar) || code.startsWith('688')) {
+    return 'sh' + code;
+  }
+
+  // 旧的北交所/新三板代码（43, 83, 87开头）
+  if (firstChar === '4' || firstChar === '8' || code.startsWith('43') || code.startsWith('83') || code.startsWith('87')) {
+    return 'bj' + code;
+  }
+
+  return code;
+}
+
 function addEvent() {
   document.getElementById('add').onclick = async function () {
     let code = prompt('股票代码 (or 命令)')
     if (runCmd(code)) return
     if (!code) return
-    if (code.startsWith('0') || code.startsWith('1') || code.startsWith('3')) {
-      code = 'sz' + code
-    }
-    if (code.startsWith('5') || code.startsWith('6')) {
-      code = 'sh' + code
-    }
-    code = code.toLowerCase()
+    code = addStockPrefix(code) + code
     let stock = await getStock(code)
     let name = stock[1]
     if (!name) {
