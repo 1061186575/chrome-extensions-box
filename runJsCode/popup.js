@@ -280,20 +280,17 @@ class UIManager {
     showAddForm() {
         document.getElementById('addForm').classList.remove('hidden');
         document.getElementById('addBtn').disabled = true;
+        document.getElementById('addCategory').value = this.currentCategory;
     }
 
     hideAddForm() {
         document.getElementById('addForm').classList.add('hidden');
         document.getElementById('addBtn').disabled = false;
-        this.clearAddForm();
-    }
-
-    clearAddForm() {
         document.getElementById('addRemark').value = '';
         document.getElementById('addCode').value = '';
         document.getElementById('addUrl').value = '';
         document.getElementById('addAutoRun').checked = false;
-        document.getElementById('addCategory').value = this.currentCategory === '全部' ? '' : this.currentCategory;
+        document.getElementById('addCategory').value = this.currentCategory;
     }
 
     async saveNewItem() {
