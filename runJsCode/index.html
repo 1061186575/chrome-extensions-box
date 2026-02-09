@@ -70,6 +70,7 @@
             padding: 10px 0;
             font-weight: bold;
             border-bottom: 2px solid #e2e8f0;
+            align-items: center;
         }
         
         .data-row {
@@ -114,14 +115,15 @@
             margin-right: 5px;
         }
         
-        .auto-run-title {
+        .tipIcon {
             display: flex;
             align-items: center;
             width: 70px;
             margin-right: 10px;
+            cursor: pointer;
         }
         
-        .auto-run-title::after {
+        .tipIcon::after {
             content: "?";
             display: inline-block;
             width: 18px;
@@ -137,18 +139,39 @@
         .actions {
             display: flex;
             gap: 5px;
+            width: 165px;
         }
         
         .remark {
-            width: 120px !important;
+            width: 100px !important;
         }
         
         .code {
-            width: 250px !important;
+            width: 150px !important;
         }
         
         .url {
-            width: 200px !important;
+            width: 100px !important;
+        }
+
+        .category {
+            width: 90px;
+            display: flex;
+            align-items: center;
+            margin-right: 10px;
+        }
+
+        .header-row .remark {
+            width: 130px !important;
+            margin-left: 10px;
+        }
+
+        .header-row .code {
+            width: 180px !important;
+        }
+
+        .header-row .url {
+            width: 120px !important;
         }
         
         .hidden {
@@ -221,10 +244,10 @@
     <div class="header-row">
         <span class="remark">功能名</span>
         <span class="code">代码</span>
-        <span class="url">URL (匹配的 URL 会自动执行)</span>
-        <span class="auto-run-title" title="切换到 URL 匹配到的标签页会自动执行">自动执行</span>
-        <span style="width: 120px;">分类</span>
-        <span>操作</span>
+        <span class="auto-run tipIcon" title="如果开启, 每次切换标签页都会自动执行">auto</span>
+        <span class="url tipIcon" title="如果 URL 有值, 就只有匹配到的 URL 才会自动执行, 不填则匹配所有 URL">URL</span>
+        <span class="category">分类</span>
+        <span class="actions">操作</span>
     </div>
     
     <div id="dataList"></div>
@@ -232,12 +255,12 @@
     <div id="addForm" class="data-row hidden">
         <textarea id="addRemark" class="remark" placeholder="功能名"></textarea>
         <textarea id="addCode" class="code" placeholder="JavaScript 代码"></textarea>
-        <textarea id="addUrl" class="url" placeholder="URL"></textarea>
         <div class="auto-run">
             <input type="checkbox" id="addAutoRun">
-            <label for="addAutoRun">启用</label>
+            <!--<label for="addAutoRun">启用</label>-->
         </div>
-        <div class="auto-run" style="width: 120px;">
+        <textarea id="addUrl" class="url" placeholder="URL"></textarea>
+        <div class="category">
             <input type="text" id="addCategory" placeholder="分类" style="width: 100%; padding: 4px; border: 1px solid #e2e8f0; border-radius: 4px;" list="categoryOptions">
             <datalist id="categoryOptions">
                 <!-- 动态填充分类选项 -->

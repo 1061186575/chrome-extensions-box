@@ -247,12 +247,12 @@ class UIManager {
         div.innerHTML = `
             <textarea class="remark" disabled>${item.remark}</textarea>
             <textarea class="code" disabled>${item.code}</textarea>
-            <textarea class="url" disabled>${item.url || ''}</textarea>
             <div class="auto-run">
                 <input type="checkbox" ${item.autoRun ? 'checked' : ''} disabled>
-                <label>启用</label>
+                <!--<label>启用</label>-->
             </div>
-            <div class="auto-run" style="width: 120px;">
+            <textarea class="url" disabled>${item.url || ''}</textarea>
+            <div class="category">
                 <input type="text" class="category-input" value="${item.category || '全部'}" disabled style="width: 100%; padding: 4px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;">
             </div>
             <div class="actions">
@@ -446,4 +446,12 @@ class UIManager {
 document.addEventListener('DOMContentLoaded', function() {
     const dataManager = new DataManager();
     const uiManager = new UIManager(dataManager);
+});
+
+Array.from(document.querySelectorAll('.tipIcon')).forEach(iconEle => {
+    iconEle.addEventListener('click', function() {
+        if (iconEle.title) {
+            alert(iconEle.title)
+        }
+    });
 });
