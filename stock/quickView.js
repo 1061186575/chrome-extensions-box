@@ -124,9 +124,11 @@ function genTr(...arr) {
     arr.forEach((item) => {
         let value = item;
         let url = null;
+        let action = null;
         if (typeof item === 'object' && item !== null) {
             value = item.value;
             url = item.url;
+            action = item.action;
         }
         const firstChar = String(value)[0];
         const lastChar = String(value)[String(value).length - 1];
@@ -141,7 +143,7 @@ function genTr(...arr) {
 
         // 如果有URL，添加data-url属性和点击样式
         if (url) {
-            html += `<td class="${colorClass} link" data-url="${url}" data-acion="open">${value}</td>`;
+            html += `<td class="${colorClass} link" data-url="${url}" data-action="${action}">${value}</td>`;
         } else {
             html += `<td class="${colorClass}">${value}</td>`;
         }
@@ -151,18 +153,64 @@ function genTr(...arr) {
     return html;
 }
 
+function getGold() {
+    // https://quote.eastmoney.com/center/gridlist2.html#futures_101_1
+    let now = Date.now()
+    let callbackName = `jQuery371037434943223805185_${now}`
+    return fetch(`https://futsseapi.eastmoney.com/list/variety/101/1?callbackName=${callbackName}&field=dm%2Csc%2Cname%2Cp%2Czdf%2Czsjd%2Czde%2Co%2Czjsj%2Ch%2Cl%2Cvol%2Ccje%2Cwp%2Cnp%2Cccl&token=58b2fa8f54683b60b87d69b31969089c&orderBy=zdf&sort=desc&pageSize=20&pageIndex=0&blockName=callback&_=${now + 2}`)
+        .then(res => res.text())
+        .then(text => {
+            // console.log('text', text)
+            let jsonStr = text.replace(callbackName, '').replace(/^\(/, '').replace(/\)$/, '');
+            return JSON.parse(jsonStr).list.find(d => d.name === 'COMEX黄金')
+        })
+        .catch(err => {
+            console.error('err', err)
+        })
+}
+
+function getNDX() {
+    // https://quote.eastmoney.com/gb/zsNDX.html
+    let now = Date.now()
+    let callbackName = `jQuery371016327434452843647_${now}`
+    return fetch(`https://push2.eastmoney.com/api/qt/clist/get?np=1&fltt=1&invt=2&cb=${callbackName}&fs=i%3A100.DJIA%2Ci%3A100.SPX%2Ci%3A100.NDX%2Ci%3A100.TSX%2Ci%3A100.BVSP%2Ci%3A100.MXX&fields=f12%2Cf13%2Cf14%2Cf292%2Cf1%2Cf2%2Cf4%2Cf3%2Cf152%2Cf17%2Cf18%2Cf15%2Cf16%2Cf7%2Cf124&fid=f3&pn=1&pz=20&po=1&dect=1&ut=fa4fd6943c7b386f272d6893dbfba10b&wbp2u=%7C0%7C0%7C0%7Cweb&_=${now + 3}`)
+        .then(res => res.text())
+        .then(text => {
+            // console.log('text', text)
+            let jsonStr = text.replace(callbackName, '').replace(/^\(/, '').replace(/\);$/, '');
+            return JSON.parse(jsonStr).data.diff.find(d => d.f14 === '纳斯达克')
+        })
+        .catch(err => {
+            console.error('err', err)
+        })
+}
+
 async function renderBTC() {
     // https://gushitong.baidu.com/foreign/global-BTCUSD
     // https://gushitong.baidu.com/foreign/global-ETHUSD
-    let BTCUSDRes = await fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=BTCUSD&finClientType=pc').then(res => res.json())
-    let ETHUSDRes = await fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=ETHUSD&finClientType=pc').then(res => res.json())
+
+    const [
+        NDXItem,
+        GoldItem,
+        BTCUSDRes,
+        ETHUSDRes,
+    ] = await Promise.all([
+        getNDX(),
+        getGold(),
+        fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=BTCUSD&finClientType=pc').then(res => res.json()),
+        fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=ETHUSD&finClientType=pc').then(res => res.json()),
+    ])
+
+    console.log('NDXItem', NDXItem)
+    console.log('GoldItem', GoldItem)
     console.log('BTCUSDRes', BTCUSDRes)
     console.log('ETHUSDRes', ETHUSDRes)
+
     if (BTCUSDRes.ResultCode === '0' && ETHUSDRes.ResultCode === '0') {
         let BTCItem = BTCUSDRes.Result.corrCode.front.find(d => d.code === 'BTCUSD' || d.code === 'BTCCNY');
         let ETHItem = ETHUSDRes.Result.corrCode.front.find(d => d.code === 'ETHUSD' || d.code === 'ETHCNY');
-        console.log('BTCItem', BTCItem)
-        console.log('ETHItem', ETHItem)
+        // console.log('BTCItem', BTCItem)
+        // console.log('ETHItem', ETHItem)
 
         function CNYToUSD(res, item) {
             const value = +item.price.value;
@@ -182,31 +230,67 @@ async function renderBTC() {
             return (value / exchangeRate).toFixed(4)
         }
 
-        if (BTCItem && ETHItem) {
-            let title = genTr('BTC and Eth')
-            let BTCPrice = genTr({
+        let title = `<tr class="section-header"><td>外盘:</td></tr>`
+        let NDXContent = ''
+        let GoldContent = ''
+        let BTCContent = ''
+        let EthContent = ''
+
+        if (NDXItem) {
+            NDXContent = genTr({
+                value: NDXItem.f14,
+                url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&token=ed8644c9d251add88e27b65506f6e5da&nid=100.NDX&timespan=${get10LenTime()}`,
+                action: `showMinImage`,
+            }, {
+                value: NDXItem.f2 / 100,
+                url: `https://quote.eastmoney.com/gb/zsNDX.html`,
+                action: `open`,
+            }, NDXItem.f3 / 100 + '%')
+        }
+
+        if (GoldItem) {
+            GoldContent = genTr({
+                value: GoldItem.name,
+                url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=ed8644c9d251add88e27b65506f6e5da&nid=101.GC00Y&timespan=${get10LenTime()}`,
+                action: 'showMinImage',
+            }, {
+                value: GoldItem.p,
+                url: `https://quote.eastmoney.com/globalfuture/GC00Y.html`,
+                action: 'open',
+            }, GoldItem.zdf + '%')
+        }
+
+        if (BTCItem) {
+            BTCContent = genTr({
                 value: 'BTC',
                 url: 'https://gushitong.baidu.com/foreign/global-BTCUSD'
             }, {
                 value: CNYToUSD(BTCUSDRes, BTCItem),
                 url: 'https://gushitong.baidu.com/foreign/global-BTCUSD'
             }, BTCItem.ratio.value.replace('00%', '%'))
+        }
 
-            let EthPrice = genTr({
+        if (ETHItem) {
+            EthContent = genTr({
                 value: 'Eth',
                 url: 'https://gushitong.baidu.com/foreign/global-ETHUSD'
             }, {
                 value: CNYToUSD(ETHUSDRes, ETHItem),
                 url: 'https://gushitong.baidu.com/foreign/global-ETHUSD'
             }, ETHItem.ratio.value.replace('00%', '%'))
-
-            const BTCRenderEle = document.getElementById('BTCRender')
-            BTCRenderEle.innerHTML = title + BTCPrice + EthPrice
-
-            // 添加事件委托
-            addOpenUrlEventListener(BTCRenderEle)
-
         }
+
+        let BTCRenderId = 'BTCRenderLast'
+        let date = new Date()
+        if (date.getHours() < 9 || date.getHours() > 16) {
+            BTCRenderId = 'BTCRenderFirst'
+        }
+
+        const BTCRenderEle = document.getElementById(BTCRenderId)
+        BTCRenderEle.innerHTML = title + NDXContent + GoldContent + BTCContent + EthContent
+
+        // 添加事件委托
+        addOpenUrlEventListener(BTCRenderEle)
     }
 }
 
@@ -239,18 +323,21 @@ function addOpenUrlEventListener(ele) {
             if (action === 'open') {
                 window.open(url);
             } else if (action === 'showMinImage') {
-                insertMinImage(target)
-                insertMinImage(parentElement)
+                if (tagName === 'TD') {
+                    insertMinImage(parentElement, url)
+                } else {
+                    insertMinImage(target, url)
+                }
                 setBodyWidth()
             } else {
-                console.warn('未知的操作', action)
+                window.open(url);
             }
         }
     });
 }
 
-function insertMinImage(tr) {
-    const url = tr.getAttribute('data-url')
+function insertMinImage(tr, url) {
+    url = url || tr.getAttribute('data-url')
     // console.log(tr)
     // console.log('url', url)
     if (url) {
@@ -269,4 +356,8 @@ function setBodyWidth(px = 600) {
     if (document.body.style.width !== width) {
         document.body.style.width = width
     }
+}
+
+function get10LenTime() {
+    return Date.now().toString().substring(0, 10).length;
 }
