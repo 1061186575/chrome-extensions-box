@@ -215,7 +215,7 @@ async function renderBTC() {
         function CNYToUSD(res, item) {
             const value = +item.price.value;
             if (!item.code.endsWith('CNY')) {
-                return value.toFixed(4)
+                return value.toFixed(2)
             }
             let exchangeRate = 7
             try {
@@ -227,7 +227,7 @@ async function renderBTC() {
             } catch (e) {
                 console.log(`e`, e)
             }
-            return (value / exchangeRate).toFixed(4)
+            return (value / exchangeRate).toFixed(2)
         }
 
         let title = `<tr class="section-header"><td>外盘:</td></tr>`
@@ -249,12 +249,25 @@ async function renderBTC() {
         }
 
         if (GoldItem) {
-            GoldContent = genTr({
+            GoldContent += genTr({
                 value: GoldItem.name,
                 url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=ed8644c9d251add88e27b65506f6e5da&nid=101.GC00Y&timespan=${get10LenTime()}`,
                 action: 'showMinImage',
             }, {
                 value: GoldItem.p,
+                url: `https://quote.eastmoney.com/globalfuture/GC00Y.html`,
+                action: 'open',
+            }, GoldItem.zdf + '%')
+
+            // 美元兑离岸人民币
+            const USDCNH = 6.9
+
+            GoldContent += genTr({
+                value: '黄金(元/g)',
+                url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=ed8644c9d251add88e27b65506f6e5da&nid=101.GC00Y&timespan=${get10LenTime()}`,
+                action: 'showMinImage',
+            }, {
+                value: (GoldItem.p / 31.1035 * USDCNH).toFixed(2),
                 url: `https://quote.eastmoney.com/globalfuture/GC00Y.html`,
                 action: 'open',
             }, GoldItem.zdf + '%')
