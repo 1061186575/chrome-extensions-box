@@ -123,3 +123,7 @@ table tr td:last-child {
     /*text-underline-position: under;*/
     /*color: #667eea;*/
 }
+
+.cursorP {
+    cursor: pointer;
+}

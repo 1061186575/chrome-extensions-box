@@ -33,7 +33,7 @@ function genStockText(res) {
     // https://quote.eastmoney.com/zs399905.html
     let url = `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=&nid=${type}.${code}&timespan=${time}`
     let html = ``
-    html += `<tr data-url="${url}" class="link">`
+    html += `<tr data-url="${url}" data-action="showMinImage" class="link">`
     res.forEach((d, i) => {
         let key = stockMap[i]
         if (key) {
@@ -81,13 +81,15 @@ function render() {
                 return arr
             })
         const appEle = document.getElementById('app')
-        const title = `<tr class="section-header"><td class="link" data-url="https://quote.eastmoney.com/zs399905.html">自选:</td></tr>`
+        const title = `<tr class="section-header"><td class="link" data-url="https://quote.eastmoney.com/zs399905.html" data-action="open">自选:</td></tr>
+<tr><td id="showAllMinImage" class="cursorP">全部分时图</td></tr>`
         appEle.innerHTML = title + resList.map(res => genStockText(res)).join('')
 
         // 添加事件委托
         addOpenUrlEventListener(appEle)
     })
 }
+
 render();
 
 async function renderRank() {
@@ -113,6 +115,7 @@ async function renderRank() {
     }).join('')
     document.getElementById('plateRankRender').innerHTML = `<tr class="section-header"><td>涨幅榜:</td></tr> ${r(top)} <tr class="section-header bottom-header"><td>跌幅榜:</td></tr> ${r(bottom)}`
 }
+
 renderRank();
 
 function genTr(...arr) {
@@ -138,7 +141,7 @@ function genTr(...arr) {
 
         // 如果有URL，添加data-url属性和点击样式
         if (url) {
-            html += `<td class="${colorClass} link" data-url="${url}">${value}</td>`;
+            html += `<td class="${colorClass} link" data-url="${url}" data-acion="open">${value}</td>`;
         } else {
             html += `<td class="${colorClass}">${value}</td>`;
         }
@@ -160,7 +163,7 @@ async function renderBTC() {
         let ETHItem = ETHUSDRes.Result.corrCode.front.find(d => d.code === 'ETHUSD' || d.code === 'ETHCNY');
         console.log('BTCItem', BTCItem)
         console.log('ETHItem', ETHItem)
-        
+
         function CNYToUSD(res, item) {
             const value = +item.price.value;
             if (!item.code.endsWith('CNY')) {
@@ -170,13 +173,15 @@ async function renderBTC() {
             try {
                 // 美元兑换人民币汇率
                 let USDCNYItem = res.Result.corrCode.back.find(d => d.code === 'USDCNY')
-                exchangeRate = +USDCNYItem.price.value
+                if (+USDCNYItem.price.value > 0) {
+                    exchangeRate = +USDCNYItem.price.value
+                }
             } catch (e) {
                 console.log(`e`, e)
             }
             return (value / exchangeRate).toFixed(4)
         }
-        
+
         if (BTCItem && ETHItem) {
             let title = genTr('BTC and Eth')
             let BTCPrice = genTr({
@@ -212,12 +217,56 @@ function addOpenUrlEventListener(ele) {
         const target = event.target;
         const parentElement = target.parentElement;
         const tagName = target.tagName;
+        if (target.id === 'showAllMinImage') {
+            let tr = target.parentElement
+            while (tr && tr.nextElementSibling) {
+                tr = tr.nextElementSibling
+                if (insertMinImage(tr)) {
+                    // 这里是为了跳过新添加的 tr
+                    tr = tr.nextElementSibling
+                }
+            }
+            target.remove() // 防止重复点击
+            setBodyWidth()
+            return
+        }
         if (
-          ((tagName === 'TD' || tagName === 'TR') && target.hasAttribute('data-url')) ||
-          (tagName === 'TD' && parentElement.hasAttribute('data-url'))
+            ((tagName === 'TD' || tagName === 'TR') && target.hasAttribute('data-url')) ||
+            (tagName === 'TD' && parentElement.hasAttribute('data-url'))
         ) {
+            const action = target.getAttribute('data-action') || parentElement.getAttribute('data-action');
             const url = target.getAttribute('data-url') || parentElement.getAttribute('data-url');
-            window.open(url);
+            if (action === 'open') {
+                window.open(url);
+            } else if (action === 'showMinImage') {
+                insertMinImage(target)
+                insertMinImage(parentElement)
+                setBodyWidth()
+            } else {
+                console.warn('未知的操作', action)
+            }
         }
     });
+}
+
+function insertMinImage(tr) {
+    const url = tr.getAttribute('data-url')
+    // console.log(tr)
+    // console.log('url', url)
+    if (url) {
+        const newTr = document.createElement('tr')
+        newTr.innerHTML = `<td><img src="${url}" width="578px" alt=""></td>`
+        tr.after(newTr)
+        return true;
+    } else {
+        console.warn('tr 的 data-url 没有值', tr)
+    }
+    return false;
+}
+
+function setBodyWidth(px = 600) {
+    const width = px + 'px'
+    if (document.body.style.width !== width) {
+        document.body.style.width = width
+    }
 }
