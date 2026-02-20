@@ -162,7 +162,12 @@ function getGold() {
         .then(text => {
             // console.log('text', text)
             let jsonStr = text.replace(callbackName, '').replace(/^\(/, '').replace(/\)$/, '');
-            return JSON.parse(jsonStr).list.find(d => d.name === 'COMEX黄金')
+            let obj = JSON.parse(jsonStr).list.find(d => d.name === 'COMEX黄金')
+            return {
+                name: obj.name,
+                value: obj.p,
+                ratio: obj.zdf,
+            }
         })
         .catch(err => {
             console.error('err', err)
@@ -178,7 +183,34 @@ function getNDX() {
         .then(text => {
             // console.log('text', text)
             let jsonStr = text.replace(callbackName, '').replace(/^\(/, '').replace(/\);$/, '');
-            return JSON.parse(jsonStr).data.diff.find(d => d.f14 === '纳斯达克')
+            let obj = JSON.parse(jsonStr).data.diff.find(d => d.f14 === '纳斯达克')
+            return {
+                name: obj.f14,
+                value: obj.f2 / 100,
+                ratio: obj.f3 / 100,
+            }
+        })
+        .catch(err => {
+            console.error('err', err)
+        })
+}
+
+function getExchangeRate() {
+    // https://quote.eastmoney.com/center/gridlist.html#forex_cnh
+    // https://push2.eastmoney.com/api/qt/clist/get?np=1&fltt=1&invt=2&cb=jQuery371021256925088745415_1771556994041&fs=m%3A133&fields=f12%2Cf13%2Cf14%2Cf1%2Cf2%2Cf4%2Cf3%2Cf152%2Cf17%2Cf18%2Cf15%2Cf16&fid=f3&pn=1&pz=20&po=1&dect=1&ut=fa5fd1943c7b386f172d6893dbfba10b&wbp2u=%7C0%7C0%7C0%7Cweb&_=1771556994043
+    let now = Date.now()
+    let callbackName = `jQuery371016327434452843647_${now}`
+    return fetch(`https://push2.eastmoney.com/api/qt/clist/get?np=1&fltt=1&invt=2&cb=${callbackName}&fs=m%3A133&fields=f12%2Cf13%2Cf14%2Cf1%2Cf2%2Cf4%2Cf3%2Cf152%2Cf17%2Cf18%2Cf15%2Cf16&fid=f3&pn=1&pz=20&po=1&dect=1&ut=fa5fd1943c7b386f172d6893dbfba10b&wbp2u=%7C0%7C0%7C0%7Cweb&_=${now + 5}`)
+        .then(res => res.text())
+        .then(text => {
+            // console.log('text', text)
+            let jsonStr = text.replace(callbackName, '').replace(/^\(/, '').replace(/\);$/, '');
+            let obj = JSON.parse(jsonStr).data.diff.find(d => d.f14 === '美元兑离岸人民币')
+            return {
+                name: obj.f14,
+                value: obj.f2 / 10000,
+                ratio: obj.f3 / 100,
+            }
         })
         .catch(err => {
             console.error('err', err)
@@ -194,17 +226,23 @@ async function renderBTC() {
         GoldItem,
         BTCUSDRes,
         ETHUSDRes,
+        exchangeRateItem,
     ] = await Promise.all([
         getNDX(),
         getGold(),
         fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=BTCUSD&finClientType=pc').then(res => res.json()),
         fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=ETHUSD&finClientType=pc').then(res => res.json()),
+        getExchangeRate(),
     ])
 
     console.log('NDXItem', NDXItem)
     console.log('GoldItem', GoldItem)
     console.log('BTCUSDRes', BTCUSDRes)
     console.log('ETHUSDRes', ETHUSDRes)
+    console.log('exchangeRateItem', exchangeRateItem)
+
+    // 美元兑换人民币汇率
+    let exchangeRate = exchangeRateItem.value
 
     if (BTCUSDRes.ResultCode === '0' && ETHUSDRes.ResultCode === '0') {
         let BTCItem = BTCUSDRes.Result.corrCode.front.find(d => d.code === 'BTCUSD' || d.code === 'BTCCNY');
@@ -217,16 +255,15 @@ async function renderBTC() {
             if (!item.code.endsWith('CNY')) {
                 return value.toFixed(2)
             }
-            let exchangeRate = 7
-            try {
-                // 美元兑换人民币汇率
-                let USDCNYItem = res.Result.corrCode.back.find(d => d.code === 'USDCNY')
-                if (+USDCNYItem.price.value > 0) {
-                    exchangeRate = +USDCNYItem.price.value
-                }
-            } catch (e) {
-                console.log(`e`, e)
-            }
+            // try {
+            //     // 美元兑换人民币汇率
+            //     let USDCNYItem = res.Result.corrCode.back.find(d => d.code === 'USDCNY')
+            //     if (+USDCNYItem.price.value > 0) {
+            //         exchangeRate = +USDCNYItem.price.value
+            //     }
+            // } catch (e) {
+            //     console.log(`e`, e)
+            // }
             return (value / exchangeRate).toFixed(2)
         }
 
@@ -238,39 +275,35 @@ async function renderBTC() {
 
         if (NDXItem) {
             NDXContent = genTr({
-                value: NDXItem.f14,
+                value: NDXItem.name,
                 url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&token=ed8644c9d251add88e27b65506f6e5da&nid=100.NDX&timespan=${get10LenTime()}`,
                 action: `showMinImage`,
             }, {
-                value: NDXItem.f2 / 100,
+                value: NDXItem.value,
                 url: `https://quote.eastmoney.com/gb/zsNDX.html`,
                 action: `open`,
-            }, NDXItem.f3 / 100 + '%')
+            }, NDXItem.ratio + '%')
         }
 
         if (GoldItem) {
-            GoldContent += genTr({
-                value: GoldItem.name,
-                url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=ed8644c9d251add88e27b65506f6e5da&nid=101.GC00Y&timespan=${get10LenTime()}`,
-                action: 'showMinImage',
-            }, {
-                value: GoldItem.p,
-                url: `https://quote.eastmoney.com/globalfuture/GC00Y.html`,
-                action: 'open',
-            }, GoldItem.zdf + '%')
-
-            // 美元兑离岸人民币
-            const USDCNH = 6.9
-
+            // GoldContent += genTr({
+            //     value: GoldItem.name,
+            //     url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=ed8644c9d251add88e27b65506f6e5da&nid=101.GC00Y&timespan=${get10LenTime()}`,
+            //     action: 'showMinImage',
+            // }, {
+            //     value: GoldItem.value,
+            //     url: `https://quote.eastmoney.com/globalfuture/GC00Y.html`,
+            //     action: 'open',
+            // }, GoldItem.ratio + '%')
             GoldContent += genTr({
                 value: '黄金(元/g)',
                 url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=ed8644c9d251add88e27b65506f6e5da&nid=101.GC00Y&timespan=${get10LenTime()}`,
                 action: 'showMinImage',
             }, {
-                value: (GoldItem.p / 31.1035 * USDCNH).toFixed(2),
+                value: (GoldItem.value / 31.1035 * exchangeRate).toFixed(2),
                 url: `https://quote.eastmoney.com/globalfuture/GC00Y.html`,
                 action: 'open',
-            }, GoldItem.zdf + '%')
+            }, GoldItem.ratio + '%')
         }
 
         if (BTCItem) {
