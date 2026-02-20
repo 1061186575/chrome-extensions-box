@@ -328,7 +328,8 @@ async function renderBTC() {
 
         let BTCRenderId = 'BTCRenderLast'
         let date = new Date()
-        if (date.getHours() < 9 || date.getHours() > 16) {
+        // 非A股交易时间就把BTC放最前面
+        if (date.getHours() < 9 || date.getHours() > 16 || date.getDay() === 6 || date.getDay() === 0) {
             BTCRenderId = 'BTCRenderFirst'
         }
 
