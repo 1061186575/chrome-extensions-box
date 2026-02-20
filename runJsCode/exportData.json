@@ -1,0 +1,16 @@
+[
+  {
+    "autoRun": false,
+    "category": "全部",
+    "code": "alert(\"Hello World\")",
+    "remark": "test",
+    "url": ""
+  },
+  {
+    "autoRun": true,
+    "category": "全部",
+    "code": "function hiddenBaiduAds() {\n    let ads = Array.from(document.querySelectorAll('.gp2k11k'));\n    ads.forEach(d => d.id = 'hidden_ad')\n}\nfunction appendStyle() {\n    let style = document.createElement('style')\n    style.type = \"text/css\"\n    style.innerText = `#hidden_ad {\n        display: none !important;\n        background: skyblue;\n        height: 40px;\n        overflow: auto;\n    }`\n    document.head.append(style)\n}\nif (!window.__removeBaiduAdsInit) {\n    window.__removeBaiduAdsInit = true\n    appendStyle()\n    hiddenBaiduAds()\n    setInterval(function () {\n        // 每次都需要 appendStyle 才会生效\n        appendStyle()\n        hiddenBaiduAds()\n    }, 1000)\n    console.log('去除百度广告 init')\n}",
+    "remark": "去除百度广告",
+    "url": "https://www.baidu.com"
+  }
+]
