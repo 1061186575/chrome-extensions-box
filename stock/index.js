@@ -192,7 +192,7 @@ function addStockPrefix(code) {
 
   // 优先判断北交所的新代码
   if (code.startsWith('920')) {
-    return 'bj';
+    return 'bj' + code;
   }
 
   // 深交所：0,1,2,3开头
@@ -218,7 +218,7 @@ function addEvent() {
     let code = prompt('股票代码 (or 命令)')
     if (runCmd(code)) return
     if (!code) return
-    code = addStockPrefix(code) + code
+    code = addStockPrefix(code)
     let stock = await getStock(code)
     let name = stock[1]
     if (!name) {
