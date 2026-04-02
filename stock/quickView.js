@@ -33,7 +33,7 @@ function genStockText(res) {
     // https://quote.eastmoney.com/zs399905.html
     let url = `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=&nid=${type}.${code}&timespan=${time}`
     let html = ``
-    html += `<tr data-url="${url}" data-action="showMinImage" class="link">`
+    html += `<tr>`
     res.forEach((d, i) => {
         let key = stockMap[i]
         if (key) {
@@ -47,8 +47,10 @@ function genStockText(res) {
                     html += `<td>${d}%</td>`
                     break;
                 case '名称':
+                    html += `<td  data-url="${url}" data-action="showMinImage" class="link">${d}</td>`
+                    break;
                 case '当前价格':
-                    html += `<td>${d}</td>`
+                    html += `<td data-url="https://quote.eastmoney.com/${code}.html" data-action="open" class="link">${d}</td>`
                     break;
                 default:
                     html += key + ': ' + d + '<br>'
