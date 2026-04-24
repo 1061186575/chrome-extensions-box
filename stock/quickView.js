@@ -32,6 +32,7 @@ function genStockText(res) {
     let time = String(Date.now()).slice(0, -3);
     // https://quote.eastmoney.com/zs399905.html
     let url = `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=&nid=${type}.${code}&timespan=${time}`
+    let dayUrl = `https://webquoteklinepic.eastmoney.com/GetPic.aspx?nid=${type}.${code}&type=&unitWidth=-6&ef=&formula=KDJ&AT=1&imageType=KXL&timespan=${time}`
     let html = ``
     html += `<tr>`
     res.forEach((d, i) => {
@@ -41,7 +42,7 @@ function genStockText(res) {
                 case '涨跌%':
                     const changePercent = parseFloat(d);
                     const colorClass = changePercent >= 0 ? 'positive' : 'negative';
-                    html += `<td class="${colorClass}">${d}%</td>`
+                    html += `<td data-url="https://quote.eastmoney.com/${code}.html" data-action="open" class="${colorClass} link">${d}%</td>`
                     break;
                 case '换手率':
                     html += `<td>${d}%</td>`
@@ -50,7 +51,7 @@ function genStockText(res) {
                     html += `<td  data-url="${url}" data-action="showMinImage" class="link">${d}</td>`
                     break;
                 case '当前价格':
-                    html += `<td data-url="https://quote.eastmoney.com/${code}.html" data-action="open" class="link">${d}</td>`
+                    html += `<td  data-url="${dayUrl}" data-action="showDayImage" class="link">${d}</td>`
                     break;
                 default:
                     html += key + ': ' + d + '<br>'
@@ -280,9 +281,13 @@ async function renderBTC() {
             action: `showMinImage`,
         }, {
             value: NDXItem.value,
+            url: `https://webquoteklinepic.eastmoney.com/GetPic.aspx?nid=100.NDX&type=&unitWidth=-6&ef=&formula=KDJ&imageType=KXL&timespan=${get10LenTime()}`,
+            action: `showDayImage`,
+        }, {
+            value: NDXItem.ratio + '%',
             url: `https://quote.eastmoney.com/gb/zsNDX.html`,
             action: `open`,
-        }, NDXItem.ratio + '%')
+        })
     }
 
     if (GoldItem) {
@@ -301,9 +306,13 @@ async function renderBTC() {
             action: 'showMinImage',
         }, {
             value: (GoldItem.value / 31.1035 * exchangeRate).toFixed(2),
+            url: `https://webquoteklinepic.eastmoney.com/GetPic.aspx?nid=101.GC00Y&type=&unitWidth=-6&ef=&formula=KDJ&AT=1&imageType=KXL&timespan=${get10LenTime()}`,
+            action: 'showDayImage',
+        }, {
+            value: GoldItem.ratio + '%',
             url: `https://quote.eastmoney.com/globalfuture/GC00Y.html`,
             action: 'open',
-        }, GoldItem.ratio + '%')
+        })
     }
 
     if (BTCUSDRes.ResultCode === '0' && ETHUSDRes.ResultCode === '0') {
@@ -401,6 +410,13 @@ function addOpenUrlEventListener(ele) {
                     insertMinImage(target, url)
                 }
                 setBodyWidth()
+            } else if (action === 'showDayImage') {
+                if (tagName === 'TD') {
+                    insertDayImage(parentElement, url)
+                } else {
+                    insertDayImage(target, url)
+                }
+                setBodyWidth()
             } else {
                 window.open(url);
             }
@@ -415,6 +431,21 @@ function insertMinImage(tr, url) {
     if (url) {
         const newTr = document.createElement('tr')
         newTr.innerHTML = `<td><img src="${url}" width="578px" alt=""></td>`
+        tr.after(newTr)
+        return true;
+    } else {
+        console.warn('tr 的 data-url 没有值', tr)
+    }
+    return false;
+}
+
+function insertDayImage(tr, url) {
+    url = url || tr.getAttribute('data-url')
+    // console.log(tr)
+    // console.log('url', url)
+    if (url) {
+        const newTr = document.createElement('tr')
+        newTr.innerHTML = `<td><img src="${url}" width="520px" alt="" style="margin: 0 29px"></td>`
         tr.after(newTr)
         return true;
     } else {
