@@ -109,6 +109,7 @@ class UIManager {
     constructor(dataManager) {
         this.dataManager = dataManager;
         this.currentCategory = dataManager.allCategory;
+        this.searchQuery = '';
         this.init();
     }
 
@@ -217,22 +218,91 @@ class UIManager {
         document.getElementById('exportBtn').addEventListener('click', () => {
             this.exportData();
         });
+
+        // 搜索相关事件
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            this.searchQuery = e.target.value.trim();
+            this.renderList();
+        });
+
+        document.getElementById('clearSearchBtn').addEventListener('click', () => {
+            document.getElementById('searchInput').value = '';
+            this.searchQuery = '';
+            this.renderList();
+        });
+
+        // 添加键盘快捷键支持
+        document.addEventListener('keydown', (e) => {
+            // Ctrl+F 或 Cmd+F 聚焦搜索框
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+            }
+            // ESC 键清空搜索
+            if (e.key === 'Escape' && document.getElementById('searchInput') === document.activeElement) {
+                document.getElementById('searchInput').value = '';
+                this.searchQuery = '';
+                this.renderList();
+                document.getElementById('searchInput').blur();
+            }
+        });
     }
 
     renderList() {
         const listContainer = document.getElementById('dataList');
+        const searchResultsElement = document.getElementById('searchResults');
         listContainer.innerHTML = '';
 
         // 修改为异步获取数据
         this.dataManager.getAll().then(list => {
+            let matchedCount = 0;
+            let totalCount = 0;
+
             list.forEach((item, index) => {
-                // 根据当前选中的分类进行筛选
-                if (this.currentCategory === this.dataManager.allCategory || item.category === this.currentCategory) {
-                    const row = this.createDataRow(item, index);
-                    listContainer.appendChild(row);
+                // 先计算分类匹配
+                const categoryMatch = this.currentCategory === this.dataManager.allCategory || item.category === this.currentCategory;
+
+                if (categoryMatch) {
+                    totalCount++;
+
+                    // 再计算搜索匹配
+                    const searchMatch = this.matchesSearch(item);
+
+                    if (searchMatch) {
+                        matchedCount++;
+                        const row = this.createDataRow(item, index);
+                        listContainer.appendChild(row);
+                    }
                 }
             });
+
+            // 更新搜索结果统计
+            if (this.searchQuery) {
+                searchResultsElement.textContent = `找到 ${matchedCount} 条结果`;
+                searchResultsElement.style.display = 'inline';
+            } else {
+                searchResultsElement.textContent = `共 ${totalCount} 条`;
+                searchResultsElement.style.display = totalCount > 0 ? 'inline' : 'none';
+            }
         });
+    }
+
+    // 检查项目是否匹配搜索条件
+    matchesSearch(item) {
+        if (!this.searchQuery) {
+            return true;
+        }
+
+        const query = this.searchQuery.toLowerCase();
+        const remark = (item.remark || '').toLowerCase();
+        const code = (item.code || '').toLowerCase();
+        const url = (item.url || '').toLowerCase();
+        const category = (item.category || '').toLowerCase();
+
+        return remark.includes(query) ||
+               code.includes(query) ||
+               url.includes(query) ||
+               category.includes(query);
     }
 
     createDataRow(item, index) {

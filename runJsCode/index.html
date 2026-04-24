@@ -224,6 +224,45 @@
             color: white;
             border-color: #4f46e5;
         }
+
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+            width: 65%;
+        }
+
+        #searchInput {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        #searchInput:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        }
+
+        #clearSearchBtn {
+            padding: 8px 16px;
+        }
+
+        .search-highlight {
+            background-color: #fef3c7;
+            padding: 1px 2px;
+            border-radius: 2px;
+        }
+
+        .search-results {
+            font-size: 12px;
+            color: #64748b;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -234,6 +273,12 @@
         <button id="importBtn" class="btn-secondary">导入</button>
         <button id="exportBtn" class="btn-secondary">导出</button>
         <input type="file" id="upload">
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="搜索功能名或代码内容等..." />
+        <button id="clearSearchBtn" class="btn-secondary">清空</button>
+        <span id="searchResults" class="search-results"></span>
     </div>
 
     <div class="categories">
