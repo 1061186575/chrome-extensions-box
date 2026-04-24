@@ -223,6 +223,27 @@ async function renderBTC() {
     // https://gushitong.baidu.com/foreign/global-BTCUSD
     // https://gushitong.baidu.com/foreign/global-ETHUSD
 
+    let headers = {
+        "accept": "application/vnd.finance-web.v1+json",
+        "accept-language": "en,zh-CN;q=0.9,zh;q=0.8",
+        "acs-token": "1777010415458_1777050910847_a28oKD3KMjUklhIdRZDCMcJmQE2nsyID80ZM9YIl5zlnxfE3SVslsn/eNVRI906UODU6gOXSL8vJjS59ojoLJRspmANVtbF9Mg8YGDKWL6EeL78QGNrd3Rhh+FxLfwnV0EHuPD/3pipUKzpH9IGPDt0IIJqEYP+DoPJ6urArS5kyeqLIkrutURxBYXljmzsUFdtrupigS2jMQoVhdeerI5iP88+tzTAGcxVuwyGEXWa7D1NN8hxmoWG0RMWQY2wQnbO8mdzOtdFdU8Yqxe/gzunYiPNb6nRBHLAzKhHrJlLz4HHPlHyY0+cXPILV2t9QmWGMoHauBqs6/FgUvDspyseyyl7aWVnzgAMLj16eX5w+3M9j0yc6LjKfa5hJ9JCqnxhF2CVpy/7mtGeAua2mdA==",
+        "cache-control": "no-cache",
+        "pragma": "no-cache",
+        "priority": "u=1, i",
+        "sec-ch-ua": "\"Google Chrome\";v=\"147\", \"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"147\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"Windows\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-site"
+    }
+    let params = {
+        headers,
+        "referrer": "https://finance.baidu.com/",
+        "body": null,
+        "method": "GET",
+    }
+
     const [
         NDXItem,
         GoldItem,
@@ -232,8 +253,8 @@ async function renderBTC() {
     ] = await Promise.all([
         getNDX(),
         getGold(),
-        fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=BTCUSD&finClientType=pc').then(res => res.json()),
-        fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=ETHUSD&finClientType=pc').then(res => res.json()),
+        fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=BTCUSD&finClientType=pc', params).then(res => res.json()),
+        fetch('https://finance.pae.baidu.com/api/getrevforeigndata?query=ETHUSD&finClientType=pc', params).then(res => res.json()),
         getExchangeRate(),
     ])
 
@@ -246,7 +267,47 @@ async function renderBTC() {
     // 美元兑换人民币汇率
     let exchangeRate = exchangeRateItem.value
 
+    let title = `<tr class="section-header"><td>外盘:</td></tr>`
+    let NDXContent = ''
+    let GoldContent = ''
+    let BTCContent = ''
+    let EthContent = ''
+
+    if (NDXItem) {
+        NDXContent = genTr({
+            value: NDXItem.name,
+            url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&token=ed8644c9d251add88e27b65506f6e5da&nid=100.NDX&timespan=${get10LenTime()}`,
+            action: `showMinImage`,
+        }, {
+            value: NDXItem.value,
+            url: `https://quote.eastmoney.com/gb/zsNDX.html`,
+            action: `open`,
+        }, NDXItem.ratio + '%')
+    }
+
+    if (GoldItem) {
+        // GoldContent += genTr({
+        //     value: GoldItem.name,
+        //     url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=ed8644c9d251add88e27b65506f6e5da&nid=101.GC00Y&timespan=${get10LenTime()}`,
+        //     action: 'showMinImage',
+        // }, {
+        //     value: GoldItem.value,
+        //     url: `https://quote.eastmoney.com/globalfuture/GC00Y.html`,
+        //     action: 'open',
+        // }, GoldItem.ratio + '%')
+        GoldContent += genTr({
+            value: '黄金(元/g)',
+            url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=ed8644c9d251add88e27b65506f6e5da&nid=101.GC00Y&timespan=${get10LenTime()}`,
+            action: 'showMinImage',
+        }, {
+            value: (GoldItem.value / 31.1035 * exchangeRate).toFixed(2),
+            url: `https://quote.eastmoney.com/globalfuture/GC00Y.html`,
+            action: 'open',
+        }, GoldItem.ratio + '%')
+    }
+
     if (BTCUSDRes.ResultCode === '0' && ETHUSDRes.ResultCode === '0') {
+        console.log('获取BTC数据成功')
         let BTCItem = BTCUSDRes.Result.corrCode.front.find(d => d.code === 'BTCUSD' || d.code === 'BTCCNY');
         let ETHItem = ETHUSDRes.Result.corrCode.front.find(d => d.code === 'ETHUSD' || d.code === 'ETHCNY');
         // console.log('BTCItem', BTCItem)
@@ -269,45 +330,6 @@ async function renderBTC() {
             return (value / exchangeRate).toFixed(2)
         }
 
-        let title = `<tr class="section-header"><td>外盘:</td></tr>`
-        let NDXContent = ''
-        let GoldContent = ''
-        let BTCContent = ''
-        let EthContent = ''
-
-        if (NDXItem) {
-            NDXContent = genTr({
-                value: NDXItem.name,
-                url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&token=ed8644c9d251add88e27b65506f6e5da&nid=100.NDX&timespan=${get10LenTime()}`,
-                action: `showMinImage`,
-            }, {
-                value: NDXItem.value,
-                url: `https://quote.eastmoney.com/gb/zsNDX.html`,
-                action: `open`,
-            }, NDXItem.ratio + '%')
-        }
-
-        if (GoldItem) {
-            // GoldContent += genTr({
-            //     value: GoldItem.name,
-            //     url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=ed8644c9d251add88e27b65506f6e5da&nid=101.GC00Y&timespan=${get10LenTime()}`,
-            //     action: 'showMinImage',
-            // }, {
-            //     value: GoldItem.value,
-            //     url: `https://quote.eastmoney.com/globalfuture/GC00Y.html`,
-            //     action: 'open',
-            // }, GoldItem.ratio + '%')
-            GoldContent += genTr({
-                value: '黄金(元/g)',
-                url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=ed8644c9d251add88e27b65506f6e5da&nid=101.GC00Y&timespan=${get10LenTime()}`,
-                action: 'showMinImage',
-            }, {
-                value: (GoldItem.value / 31.1035 * exchangeRate).toFixed(2),
-                url: `https://quote.eastmoney.com/globalfuture/GC00Y.html`,
-                action: 'open',
-            }, GoldItem.ratio + '%')
-        }
-
         if (BTCItem) {
             BTCContent = genTr({
                 value: 'BTC',
@@ -327,20 +349,21 @@ async function renderBTC() {
                 url: 'https://gushitong.baidu.com/foreign/global-ETHUSD'
             }, ETHItem.ratio.value.replace('00%', '%'))
         }
-
-        let BTCRenderId = 'BTCRenderLast'
-        let date = new Date()
-        // 非A股交易时间就把BTC放最前面
-        if (date.getHours() < 9 || date.getHours() > 16 || date.getDay() === 6 || date.getDay() === 0) {
-            BTCRenderId = 'BTCRenderFirst'
-        }
-
-        const BTCRenderEle = document.getElementById(BTCRenderId)
-        BTCRenderEle.innerHTML = title + NDXContent + GoldContent + BTCContent + EthContent
-
-        // 添加事件委托
-        addOpenUrlEventListener(BTCRenderEle)
     }
+
+    // 渲染
+    let BTCRenderId = 'BTCRenderLast'
+    let date = new Date()
+    // 非A股交易时间就把BTC放最前面
+    if (date.getHours() < 9 || date.getHours() > 16 || date.getDay() === 6 || date.getDay() === 0) {
+        BTCRenderId = 'BTCRenderFirst'
+    }
+
+    const BTCRenderEle = document.getElementById(BTCRenderId)
+    BTCRenderEle.innerHTML = title + NDXContent + GoldContent + BTCContent + EthContent
+
+    // 添加事件委托
+    addOpenUrlEventListener(BTCRenderEle)
 }
 
 renderBTC();
