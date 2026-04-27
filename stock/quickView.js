@@ -96,8 +96,10 @@ function render() {
 render();
 
 async function renderRank() {
-    const top = await plateRank(false)
-    const bottom = await plateRank(true)
+    const top = await ETFRank(false)
+    const bottom = await ETFRank(true)
+    const top2 = await plateRank(false)
+    const bottom2 = await plateRank(true)
     /*
     top = [
         {
@@ -109,14 +111,33 @@ async function renderRank() {
             "涨跌": "-4.87%"
         },
     ]
+    top = [
+        {
+            "名称": "黄金股ETF工银",
+            "涨跌": "-1.49%",
+            "代码": "159315"
+        }
+    ]
      */
-    const r = arr => arr.slice(0, 5).map(d => {
-        const values = Object.values(d);
-        const name = values[0];
-        const changePercent = values[1];
-        return genTr(name, changePercent)
-    }).join('')
-    document.getElementById('plateRankRender').innerHTML = `<tr class="section-header"><td>涨幅榜:</td></tr> ${r(top)} <tr class="section-header bottom-header"><td>跌幅榜:</td></tr> ${r(bottom)}`
+    const r = arr => arr
+        .map((d, i) => {
+            const values = Object.values(d);
+            const name = values[0].replace(/ETF.+/, 'ETF');
+            const changePercent = values[1];
+            const firstIndex = arr.findIndex(d2 => d2.名称.startsWith(name))
+            if (firstIndex > -1 && i !== firstIndex) {
+                return ''
+            }
+            return genTr({
+                value: name,
+                url: `https://so.eastmoney.com/web/s?keyword=${d.代码 || d.名称}`,
+                action: 'open',
+            }, changePercent)
+        }).filter(d => d).slice(0, 5).join('')
+    const plateRankRenderEle = document.getElementById('plateRankRender')
+    plateRankRenderEle.innerHTML = `<tr class="section-header"><td>涨幅榜:</td></tr> ${r(top)}${r(top2)} <tr class="section-header bottom-header"><td>跌幅榜:</td></tr> ${r(bottom)}${r(bottom2)}`
+    // 添加事件委托
+    addOpenUrlEventListener(plateRankRenderEle)
 }
 
 renderRank();
