@@ -14,6 +14,8 @@ let isShowParaphrase = false; // 是否显示释义
 let globalSpeakUrl = '';
 let playWordId = 0; // 用于多次点击播放时自动停止上一次播放过程
 let recentScrollTime = Date.now()
+let pronunciationAudioEle = document.createElement('audio')
+// pronunciationAudioEle.src = 'https://openapi.youdao.com/ttsapi?q=hello&langType=en-USA&sign=18557614EBF6318ED46839B0BC9A59FD&salt=1778396568597&voice=4&format=mp3&appKey=185cacc67ac3811a&ttsVoiceStrict=false&osType=api'
 
 console.log(formatDate());
 
@@ -266,7 +268,7 @@ paraphraseBtn.onclick = function () {
 // 初始化自动发音的状态并储存到localStorage
 let is_auto_pronunciation = localStorage.getItem('is_auto_pronunciation');
 if (!is_auto_pronunciation) {
-    is_auto_pronunciation = "true" //默认自动发音
+    is_auto_pronunciation = "false" // 默认不自动发音
     localStorage.setItem('is_auto_pronunciation', is_auto_pronunciation)
 }
 
@@ -276,22 +278,24 @@ input.oninput = function (ev) {
     clearTimeout(timer);
 
     timer = setTimeout(() => {
-        translateFun(); // 翻译
+        translateFun().then(result => {
+            if (is_auto_pronunciation === 'true') {
+                pronunciation(result.speakUrl); // 翻译后需要发音
+            }
+        });
     }, 1000);
 };
 
 translate.onclick = function () {
-    translateFun().then(result => {
-        pronunciation(result.speakUrl); // 翻译后需要发音
-    });
+    pronunciation(globalSpeakUrl)
 };
 
 function changePronunciationBtnText() {
     if (is_auto_pronunciation === 'true') {
-        auto_pronunciation.textContent = '允许发音: 开';
+        auto_pronunciation.textContent = '自动发音: 开';
         auto_pronunciation.style.backgroundColor = 'rgb(50, 226, 203)';
     } else {
-        auto_pronunciation.textContent = '允许发音: 关';
+        auto_pronunciation.textContent = '自动发音: 关';
         auto_pronunciation.style.backgroundColor = 'rgb(169, 169, 169)';
     }
 }
@@ -334,11 +338,11 @@ async function translateFun() {
 }
 
 function pronunciation(speakUrl) {
-    if (is_auto_pronunciation === 'true' && speakUrl) {
-        let audio = document.createElement('audio');
-        audio.src = speakUrl;
-        audio.play();
-        audio = null;
+    if (speakUrl) {
+        pronunciationAudioEle.pause()
+        pronunciationAudioEle = document.createElement('audio');
+        pronunciationAudioEle.src = speakUrl;
+        pronunciationAudioEle.play();
     }
 }
 
