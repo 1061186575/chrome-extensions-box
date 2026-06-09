@@ -100,39 +100,54 @@ async function renderRank() {
     const bottom = await ETFRank(true)
     const top2 = await plateRank(false)
     const bottom2 = await plateRank(true)
+    // console.log(`top`, top);
+    // console.log(`top2`, top2);
+
     /*
     top = [
         {
-            "名称": "贵金属",
-            "涨跌": "-6.57%"
-        },
-        {
-            "名称": "光伏设备",
-            "涨跌": "-4.87%"
-        },
+            "type": "etf",
+            "名称": "中韩半导体ETF华泰柏瑞",
+            "涨跌": "9.99%",
+            "代码": "513310"
+        }
     ]
-    top = [
+    top2 = [
         {
-            "名称": "黄金股ETF工银",
-            "涨跌": "-1.49%",
-            "代码": "159315"
+            "type": "plate",
+            "名称": "半导体材料",
+            "涨跌": "9.06%",
+            "代码": "BK1325"
         }
     ]
      */
     const r = arr => arr
         .map((d, i) => {
-            const values = Object.values(d);
-            const name = values[0].replace(/ETF.+/, 'ETF');
-            const changePercent = values[1];
+            const name = d.名称.replace(/ETF.+/, 'ETF');
+            const code = String(d.代码)
+            const changePercent = d.涨跌;
             const firstIndex = arr.findIndex(d2 => d2.名称.startsWith(name))
+            // 去掉重复的 ETF 名称
             if (firstIndex > -1 && i !== firstIndex) {
                 return ''
             }
+
+            let urlParamType = addStockPrefix(code).includes('sh') ? 1 : 0
+            if (code.startsWith('BK')) {
+                urlParamType = 90;
+            }
+            let time = String(Date.now()).slice(0, -3);
+            // https://quote.eastmoney.com/zs399905.html
+            let imgUrl = `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=&nid=${urlParamType}.${code}&timespan=${time}`
             return genTr({
                 value: name,
-                url: `https://so.eastmoney.com/web/s?keyword=${d.代码 || d.名称}`,
+                url: imgUrl,
+                action: code ? 'showMinImage' : 'open',
+            }, {
+                value: changePercent,
+                url: d.type === 'etf' ? `https://quote.eastmoney.com/${code}.html` : `https://quote.eastmoney.com/bk/${urlParamType}.${code}.html`,
                 action: 'open',
-            }, changePercent)
+            })
         }).filter(d => d).slice(0, 5).join('')
     const plateRankRenderEle = document.getElementById('plateRankRender')
     plateRankRenderEle.innerHTML = `<tr class="section-header"><td>涨幅榜:</td></tr> ${r(top)}${r(top2)} <tr class="section-header bottom-header"><td>跌幅榜:</td></tr> ${r(bottom)}${r(bottom2)}`
@@ -484,4 +499,33 @@ function setBodyWidth(px = 600) {
 
 function get10LenTime() {
     return Date.now().toString().substring(0, 10).length;
+}
+
+function addStockPrefix(code) {
+    if (!code || typeof code !== 'string') return code;
+    code = code.trim().toLowerCase();
+
+    const firstChar = code.charAt(0);
+
+    // 优先判断北交所的新代码
+    if (code.startsWith('920')) {
+        return 'bj' + code;
+    }
+
+    // 深交所：0,1,2,3开头
+    if ('0123'.includes(firstChar)) {
+        return 'sz' + code;
+    }
+
+    // 上交所：5,6,7,9开头（科创板688也是上交所）
+    if ('5679'.includes(firstChar) || code.startsWith('688')) {
+        return 'sh' + code;
+    }
+
+    // 旧的北交所/新三板代码（43, 83, 87开头）
+    if (firstChar === '4' || firstChar === '8' || code.startsWith('43') || code.startsWith('83') || code.startsWith('87')) {
+        return 'bj' + code;
+    }
+
+    return code;
 }

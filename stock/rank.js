@@ -29,6 +29,7 @@ function getRank(url, type) {
       let arr = []
       diff.forEach(d => {
         let obj = {
+          type,
           名称: d.f14,
           涨跌: d.f3 + '%'
         }
@@ -37,6 +38,7 @@ function getRank(url, type) {
         }
         if (type === 'plate') {
           // obj.领涨股票 = d.f128
+          obj.代码 = d.f12 // BK1325
         }
         arr.push(obj)
       })
