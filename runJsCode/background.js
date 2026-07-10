@@ -145,6 +145,33 @@ function preLoadCode() {
         }
     }
 
+    if (!window._waitForElement) {
+        window._waitForElement = function (selector, onlyOne = false, timeout = 100, maxTimeout = 60 * 1000) {
+            return new Promise((resolve) => {
+                const checkElement = () => {
+                    if (onlyOne) {
+                        const element = document.querySelector(selector);
+                        if (element) {
+                            resolve(element);
+                        } else {
+                            setTimeout(checkElement, timeout);
+                        }
+                    } else {
+                        const elements = document.querySelectorAll(selector);
+                        if (elements.length > 0) {
+                            resolve(Array.from(elements));
+                        } else {
+                            setTimeout(checkElement, timeout);
+                        }
+                    }
+                };
+
+                // 初始检查
+                checkElement();
+            });
+        };
+    }
+
     if (!window._copy) {
         window._copy = function copy(text) {
             if (text instanceof HTMLElement) {
@@ -200,6 +227,7 @@ function preLoadCode() {
             }
         }
     }
+
 }
 
 // 监听标签页激活事件

@@ -3,7 +3,7 @@ const defaultList = [
     {
         url: '',
         code: 'alert("Hello World")',
-        remark: 'test',
+        remark: 'Hello',
         autoRun: false,
     },
     {
