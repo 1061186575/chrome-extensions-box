@@ -147,23 +147,48 @@ function preLoadCode() {
 
     if (!window._waitForElement) {
         window._waitForElement = function (selector, onlyOne = false, timeout = 100, maxTimeout = 60 * 1000) {
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
+                const startTime = Date.now();
+                let timerId = null;
+                let settled = false;
+
+                const finish = (callback, value) => {
+                    if (settled) {
+                        return;
+                    }
+                    settled = true;
+                    if (timerId) {
+                        clearTimeout(timerId);
+                    }
+                    callback(value);
+                };
+
                 const checkElement = () => {
+                    if (settled) {
+                        return;
+                    }
+
                     if (onlyOne) {
                         const element = document.querySelector(selector);
                         if (element) {
-                            resolve(element);
-                        } else {
-                            setTimeout(checkElement, timeout);
+                            finish(resolve, element);
+                            return;
                         }
                     } else {
                         const elements = document.querySelectorAll(selector);
                         if (elements.length > 0) {
-                            resolve(Array.from(elements));
-                        } else {
-                            setTimeout(checkElement, timeout);
+                            finish(resolve, Array.from(elements));
+                            return;
                         }
                     }
+
+                    const elapsed = Date.now() - startTime;
+                    if (elapsed >= maxTimeout) {
+                        finish(reject, new Error(`_waitForElement: 等待元素超时，selector="${selector}", maxTimeout=${maxTimeout}ms`));
+                        return;
+                    }
+
+                    timerId = setTimeout(checkElement, Math.min(timeout, maxTimeout - elapsed));
                 };
 
                 // 初始检查
