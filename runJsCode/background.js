@@ -1,3 +1,49 @@
+function createOnloadId() {
+    if (globalThis.crypto?.randomUUID) {
+        return globalThis.crypto.randomUUID();
+    }
+    return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function getPreLoadCode(token = '') {
+    return `(${preLoadCode.toString()})(${JSON.stringify(token)});`;
+}
+
+function setupOnloadBridge(tab, token, callback) {
+    chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        world: "ISOLATED",
+        func: (token) => {
+            window.__runJsCodeOnloadToken = token;
+            if (window.__runJsCodeOnloadBridgeInited) {
+                return;
+            }
+            window.__runJsCodeOnloadBridgeInited = true;
+            window.addEventListener('message', (event) => {
+                const data = event.data;
+                if (event.source !== window || !data || data.type !== '__runJsCode__save_onload' || data.token !== window.__runJsCodeOnloadToken) {
+                    return;
+                }
+                chrome.storage.local.set({
+                    [`__runJsCode__onload_${data.id}`]: {
+                        callback: data.callback,
+                        params: data.params,
+                        expiresAt: Date.now() + 10 * 60 * 1000
+                    }
+                }, () => {
+                    window.postMessage({
+                        type: '__runJsCode__save_onload_result',
+                        requestId: data.requestId,
+                        ok: !chrome.runtime.lastError,
+                        error: chrome.runtime.lastError?.message
+                    }, '*');
+                });
+            });
+        },
+        args: [token]
+    }, callback);
+}
+
 // 自动执行功能
 function autoRun(tab) {
     chrome.storage.local.get(['list'], function (result) {
@@ -45,53 +91,51 @@ function autoRun(tab) {
 
 // 检查并执行刷新回调
 function checkRefreshCallback(tab) {
-    chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        world: "MAIN",
-        func: (preLoadCodeStr) => {
-            try {
-                const _atob = str => decodeURIComponent(atob(str));
+    let id = '';
+    try {
+        id = new URL(tab.url).searchParams.get('__runJsCode__onload_id');
+    } catch (e) {
+        console.error('_onload: 解析 URL 出错', e);
+    }
+    if (!id) {
+        return;
+    }
 
-                // 检查 URL 参数中是否有回调函数
-                const urlParams = new URLSearchParams(window.location.search);
-                const encodedCallback = urlParams.get('__runJsCode__onload_callback');
-                let callbackParams = urlParams.get('__runJsCode__callback_params');
+    const storageKey = `__runJsCode__onload_${id}`;
+    chrome.storage.local.get([storageKey], (result) => {
+        const item = result[storageKey];
+        chrome.storage.local.remove(storageKey);
 
-                if (encodedCallback) {
-                    console.log('检测到 URL 参数中的回调函数');
-                    const callbackString = _atob(encodedCallback);
-                    if (callbackParams) {
-                        callbackParams = _atob(callbackParams);
-                        try {
-                            const params = JSON.parse(callbackParams);
-                            if (typeof params === 'string') {
-                                callbackParams = `"${params}"`
-                            }
-                        } catch (e) {
-                            console.error('_runJsCode: 解析回调参数出错', e);
-                        }
+        if (!item || Date.now() > item.expiresAt) {
+            console.warn('_onload: 未找到回调或回调已过期', id);
+            return;
+        }
+
+        const token = createOnloadId();
+        setupOnloadBridge(tab, token, () => {
+            chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                world: "MAIN",
+                func: (code) => {
+                    try {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        urlParams.delete('__runJsCode__onload_id');
+                        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
+                        history.replaceState(null, '', newUrl);
+
+                        const blob = new Blob([`;(function () { \ntry {\n${code}  \n} catch (e) { console.log('checkRefreshCallback error:', e) } })();`], { type: 'application/javascript' });
+                        const url = URL.createObjectURL(blob);
+                        const script = document.createElement('script');
+                        script.src = url;
+                        document.head.appendChild(script);
+                        URL.revokeObjectURL(url);
+                    } catch (e) {
+                        console.error('_onload: 出错', e);
                     }
-
-                    // 清理 URL 参数（不刷新页面）
-                    urlParams.delete('__runJsCode__onload_callback');
-                    urlParams.delete('__runJsCode__callback_params');
-                    const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
-                    history.replaceState(null, '', newUrl);
-
-                    // 执行预加载代码和回调函数
-                    const combinedCode = `(${preLoadCodeStr})(); \n(${callbackString})(${callbackParams});`;
-                    const blob = new Blob([`;(function () { \ntry {\n${combinedCode}  \n} catch (e) { console.log('checkRefreshCallback error:', e) } })();`], { type: 'application/javascript' });
-                    const url = URL.createObjectURL(blob);
-                    const script = document.createElement('script');
-                    script.src = url;
-                    document.head.appendChild(script);
-                    URL.revokeObjectURL(url);
-                }
-            } catch (e) {
-                console.error('_onload: 出错', e);
-            }
-        },
-        args: [preLoadCode.toString()]
+                },
+                args: [`${getPreLoadCode(token)} \n(${item.callback})(${item.params});`]
+            });
+        });
     });
 }
 
@@ -99,37 +143,40 @@ function checkRefreshCallback(tab) {
 function executeScript(tab, code) {
     console.log(`executeScript`, code);
 
-    chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        world: "MAIN", // 必须设置 MAIN 才能用 eval
-        func: (preLoadCodeStr, code) => {
-            try {
-                function safeRunCode(code) {
-                    // eval(str);
-                    // 可绕过部分 CSP 限制
-                    (function () {
-                        const blob = new Blob([`;(function () { try {  ${code}  } catch (e) { console.log('safeRunCode error:', e) } })();`], { type: 'application/javascript' });
-                        const url = URL.createObjectURL(blob);
-                        const script = document.createElement('script');
-                        script.src = url;
-                        document.head.appendChild(script);
-                        URL.revokeObjectURL(url);
-                    })();
-                    // console.log(`code`, code);
+    const token = createOnloadId();
+    setupOnloadBridge(tab, token, () => {
+        chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            world: "MAIN", // 必须设置 MAIN 才能用 eval
+            func: (preLoadCodeStr, code) => {
+                try {
+                    function safeRunCode(code) {
+                        // eval(str);
+                        // 可绕过部分 CSP 限制
+                        (function () {
+                            const blob = new Blob([`;(function () { try {  ${code}  } catch (e) { console.log('safeRunCode error:', e) } })();`], { type: 'application/javascript' });
+                            const url = URL.createObjectURL(blob);
+                            const script = document.createElement('script');
+                            script.src = url;
+                            document.head.appendChild(script);
+                            URL.revokeObjectURL(url);
+                        })();
+                        // console.log(`code`, code);
+                    }
+
+                    safeRunCode(preLoadCodeStr + '\n' + code);
+
+                } catch (e) {
+                    console.log(`runJsCode err`, e);
                 }
-
-                safeRunCode(`(${preLoadCodeStr})();` + '\n' + code);
-
-            } catch (e) {
-                console.log(`runJsCode err`, e);
-            }
-        },
-        args: [preLoadCode.toString(), code]
+            },
+            args: [getPreLoadCode(token), code]
+        });
     });
 }
 
 
-function preLoadCode() {
+function preLoadCode(onloadToken = '') {
     if (!window._$) {
         window._$ = document.querySelector.bind(document);
     }
@@ -213,9 +260,9 @@ function preLoadCode() {
         }
     }
 
-    if (!window._onload) {
+    if (!window._onload || window._onload.__runJsCodeHelper) {
         // callback 会在页面跳转后立即执行
-        window._onload = function (url, callback, callbackParams = undefined, runOptions = {}) {
+        window._onload = async function (url, callback, callbackParams = undefined, runOptions = {}) {
             const { newTabOpen } = runOptions;
             if (typeof url !== 'string') {
                 console.error('_onload: url 必须是字符串');
@@ -231,18 +278,54 @@ function preLoadCode() {
                 return;
             }
 
-            const _btoa = str => btoa(encodeURIComponent(str));
-
-            // 将回调函数序列化并编码为 URL 参数
-            const callbackString = callback.toString();
-            const encodedCallback = _btoa(callbackString);
-
             // 使用 URL 对象和 URLSearchParams 正确处理 URL
             const urlObj = new URL(url, window.location.origin);
-            urlObj.searchParams.set('__runJsCode__onload_callback', encodedCallback);
-            if (callbackParams !== undefined && callbackParams !== null) {
-                urlObj.searchParams.set('__runJsCode__callback_params', _btoa(JSON.stringify(callbackParams)));
+            const onloadId = window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            const requestId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+            let params = 'undefined';
+
+            try {
+                if (callbackParams !== undefined) {
+                    params = JSON.stringify(callbackParams);
+                }
+            } catch (e) {
+                console.error('_onload: callbackParams 序列化失败', e);
+                return;
             }
+
+            try {
+                await new Promise((resolve, reject) => {
+                    const timer = setTimeout(() => {
+                        window.removeEventListener('message', onMessage);
+                        reject(new Error('_onload: 保存回调超时'));
+                    }, 1000);
+
+                    function onMessage(event) {
+                        const data = event.data;
+                        if (event.source !== window || !data || data.type !== '__runJsCode__save_onload_result' || data.requestId !== requestId) {
+                            return;
+                        }
+                        clearTimeout(timer);
+                        window.removeEventListener('message', onMessage);
+                        data.ok ? resolve() : reject(new Error(data.error || '_onload: 保存回调失败'));
+                    }
+
+                    window.addEventListener('message', onMessage);
+                    window.postMessage({
+                        type: '__runJsCode__save_onload',
+                        token: onloadToken,
+                        requestId,
+                        id: onloadId,
+                        callback: callback.toString(),
+                        params
+                    }, '*');
+                });
+            } catch (e) {
+                console.error(e);
+                return;
+            }
+
+            urlObj.searchParams.set('__runJsCode__onload_id', onloadId);
             const targetUrl = urlObj.toString();
 
             if (newTabOpen) {
@@ -251,6 +334,7 @@ function preLoadCode() {
                 location.href = targetUrl;
             }
         }
+        window._onload.__runJsCodeHelper = true;
     }
 
 }
