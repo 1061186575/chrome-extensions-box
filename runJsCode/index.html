@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <style>
         body {
-            width: 750px;
+            width: 700px;
             min-height: 400px;
             margin: 0;
             padding: 10px;
@@ -138,8 +138,16 @@
         
         .actions {
             display: flex;
+            flex-wrap: wrap;
             gap: 5px;
-            width: 165px;
+            width: 120px;
+        }
+
+        .actions button {
+            flex: 0 0 calc(50% - 3px);
+            justify-content: center;
+            padding: 7px 9px;
+            font-size: 13px;
         }
         
         .remark {

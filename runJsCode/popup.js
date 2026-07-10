@@ -65,6 +65,34 @@ class DataManager {
         });
     }
 
+    pin(index) {
+        return new Promise((resolve, reject) => {
+            chrome.storage.local.get(['list'], (result) => {
+                let list = result.list || defaultList;
+                if (list[index]) {
+                    list[index].pinnedAt = Date.now();
+                }
+                chrome.storage.local.set({list: list}, () => {
+                    resolve();
+                });
+            });
+        });
+    }
+
+    unpin(index) {
+        return new Promise((resolve, reject) => {
+            chrome.storage.local.get(['list'], (result) => {
+                let list = result.list || defaultList;
+                if (list[index]) {
+                    delete list[index].pinnedAt;
+                }
+                chrome.storage.local.set({list: list}, () => {
+                    resolve();
+                });
+            });
+        });
+    }
+
     getAll() {
         return new Promise((resolve, reject) => {
             chrome.storage.local.get(['list'], (result) => {
@@ -258,7 +286,14 @@ class UIManager {
             let matchedCount = 0;
             let totalCount = 0;
 
-            list.forEach((item, index) => {
+            const sortedList = list
+                .map((item, index) => ({ item, index }))
+                .sort((a, b) => {
+                    const pinnedDiff = (b.item.pinnedAt || 0) - (a.item.pinnedAt || 0);
+                    return pinnedDiff || a.index - b.index;
+                });
+
+            sortedList.forEach(({item, index}) => {
                 // 先计算分类匹配
                 const categoryMatch = this.currentCategory === this.dataManager.allCategory || item.category === this.currentCategory;
 
@@ -321,6 +356,7 @@ class UIManager {
             </div>
             <div class="actions">
                 <button class="run-btn" data-index="${index}">执行</button>
+                <button class="pin-btn" data-index="${index}">${item.pinnedAt ? '取消' : '置顶'}</button>
                 <button class="edit-btn" data-index="${index}">编辑</button>
                 <button class="delete-btn" data-index="${index}">删除</button>
             </div>
@@ -328,6 +364,10 @@ class UIManager {
 
         div.querySelector('.run-btn').addEventListener('click', () => {
             executeScript(item.code);
+        });
+
+        div.querySelector('.pin-btn').addEventListener('click', () => {
+            this.togglePinItem(index, Boolean(item.pinnedAt));
         });
 
         div.querySelector('.edit-btn').addEventListener('click', () => {
@@ -390,21 +430,24 @@ class UIManager {
             categoryInput.disabled = false;
 
             // 更改按钮
-            buttons[1].textContent = '保存';
-            buttons[1].className = 'btn-success';
-            buttons[1].onclick = () => {
+            buttons[2].textContent = '保存';
+            buttons[2].className = 'btn-success';
+            buttons[2].onclick = () => {
                 this.saveItem(index, rowElement);
             };
         });
     }
 
     async saveItem(index, rowElement) {
+        const list = await this.dataManager.getAll();
+        const currentItem = list[index] || {};
         const textareas = rowElement.querySelectorAll('textarea');
         const checkbox = rowElement.querySelector('input[type="checkbox"]');
         const categoryInput = rowElement.querySelector('.category-input');
         const category = categoryInput.value.trim() || this.dataManager.allCategory;
 
         const updatedItem = {
+            ...currentItem,
             remark: textareas[0].value,
             code: textareas[1].value,
             url: textareas[2].value,
@@ -425,6 +468,15 @@ class UIManager {
             await this.renderCategories();
             this.renderList();
         }
+    }
+
+    async togglePinItem(index, isPinned) {
+        if (isPinned) {
+            await this.dataManager.unpin(index);
+        } else {
+            await this.dataManager.pin(index);
+        }
+        this.renderList();
     }
 
     importData(event) {
