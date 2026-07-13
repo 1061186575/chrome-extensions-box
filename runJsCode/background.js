@@ -123,7 +123,7 @@ function checkRefreshCallback(tab) {
                         const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
                         history.replaceState(null, '', newUrl);
 
-                        const blob = new Blob([`;(function () { \ntry {\n${code}  \n} catch (e) { console.log('checkRefreshCallback error:', e) } })();`], { type: 'application/javascript' });
+                        const blob = new Blob([`;(function () { \ntry {\n${code}  \n} catch (e) { console.log('checkRefreshCallback error:', e) } finally { if (window._runJsCodePluginEnv === true) window._runJsCodePluginEnv = undefined; } })();`], { type: 'application/javascript' });
                         const url = URL.createObjectURL(blob);
                         const script = document.createElement('script');
                         script.src = url;
@@ -154,7 +154,7 @@ function executeScript(tab, code) {
                         // eval(str);
                         // 可绕过部分 CSP 限制
                         (function () {
-                            const blob = new Blob([`;(function () { try {  ${code}  } catch (e) { console.log('safeRunCode error:', e) } })();`], { type: 'application/javascript' });
+                            const blob = new Blob([`;(function () { try {  ${code}  } catch (e) { console.log('safeRunCode error:', e) } finally { if (window._runJsCodePluginEnv === true) window._runJsCodePluginEnv = undefined; } })();`], { type: 'application/javascript' });
                             const url = URL.createObjectURL(blob);
                             const script = document.createElement('script');
                             script.src = url;
@@ -177,6 +177,10 @@ function executeScript(tab, code) {
 
 
 function preLoadCode(onloadToken = '') {
+    if (window._runJsCodePluginEnv === undefined) {
+        window._runJsCodePluginEnv = true;
+    }
+
     if (!window._$) {
         window._$ = document.querySelector.bind(document);
     }
