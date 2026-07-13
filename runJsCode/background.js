@@ -67,7 +67,7 @@ function autoRun(tab) {
                             const regexPattern = item.url.slice(1, -1); // 去掉前后的 /
                             const regex = new RegExp(regexPattern);
                             isMatch = regex.test(url);
-                            console.log(`Regex match: ${regexPattern} -> ${isMatch} for URL: ${url}`);
+                            // console.log(`Regex match: ${regexPattern} -> ${isMatch} for URL: ${url}`);
                         } catch (e) {
                             console.error('Invalid regex pattern:', item.url, e);
                             // 如果正则表达式无效，回退到字符串匹配
@@ -95,7 +95,6 @@ function checkRefreshCallback(tab) {
     try {
         id = new URL(tab.url).searchParams.get('__runJsCode__onload_id');
     } catch (e) {
-        console.error('_onload: 解析 URL 出错', e);
     }
     if (!id) {
         return;
