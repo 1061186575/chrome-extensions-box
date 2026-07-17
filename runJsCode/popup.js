@@ -130,6 +130,24 @@ class DataManager {
             });
         });
     }
+
+    // 获取当前搜索内容
+    getSearchQuery() {
+        return new Promise((resolve) => {
+            chrome.storage.local.get(['searchQuery'], (result) => {
+                resolve(result.searchQuery || '');
+            });
+        });
+    }
+
+    // 设置当前搜索内容
+    setSearchQuery(searchQuery) {
+        return new Promise((resolve) => {
+            chrome.storage.local.set({searchQuery}, () => {
+                resolve();
+            });
+        });
+    }
 }
 
 // UI管理
@@ -145,6 +163,7 @@ class UIManager {
         this.bindEvents();
         await this.migrateData();
         await this.initializeCategories();
+        await this.initializeSearch();
         await this.renderCategories();
         this.renderList();
     }
@@ -171,6 +190,11 @@ class UIManager {
 
     async initializeCategories() {
         this.currentCategory = await this.dataManager.getCurrentCategory();
+    }
+
+    async initializeSearch() {
+        this.searchQuery = await this.dataManager.getSearchQuery();
+        document.getElementById('searchInput').value = this.searchQuery;
     }
 
     async renderCategories() {
@@ -250,12 +274,14 @@ class UIManager {
         // 搜索相关事件
         document.getElementById('searchInput').addEventListener('input', (e) => {
             this.searchQuery = e.target.value.trim();
+            this.dataManager.setSearchQuery(this.searchQuery);
             this.renderList();
         });
 
         document.getElementById('clearSearchBtn').addEventListener('click', () => {
             document.getElementById('searchInput').value = '';
             this.searchQuery = '';
+            this.dataManager.setSearchQuery(this.searchQuery);
             this.renderList();
         });
 
@@ -270,6 +296,7 @@ class UIManager {
             if (e.key === 'Escape' && document.getElementById('searchInput') === document.activeElement) {
                 document.getElementById('searchInput').value = '';
                 this.searchQuery = '';
+                this.dataManager.setSearchQuery(this.searchQuery);
                 this.renderList();
                 document.getElementById('searchInput').blur();
             }
