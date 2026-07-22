@@ -153,7 +153,7 @@ function executeScript(tab, code) {
                         // eval(str);
                         // 可绕过部分 CSP 限制
                         (function () {
-                            const blob = new Blob([`;(function () { try {  ${code}  } catch (e) { console.log('safeRunCode error:', e) } finally { if (window._runJsCodePluginEnv === true) window._runJsCodePluginEnv = undefined; } })();`], { type: 'application/javascript' });
+                            const blob = new Blob([`;(function () {\ntry {\n${code}  \n} catch (e) { console.log('safeRunCode error:', e) } finally { if (window._runJsCodePluginEnv === true) window._runJsCodePluginEnv = undefined; } })();`], { type: 'application/javascript' });
                             const url = URL.createObjectURL(blob);
                             const script = document.createElement('script');
                             script.src = url;
@@ -260,6 +260,72 @@ function preLoadCode(onloadToken = '') {
                 alert('复制失败');
             }
             document.body.removeChild(input);
+        }
+    }
+
+    if (!window._toast) {
+        window._toast = function toast(msg, duration = 3) {
+            const durationNumber = Number(duration);
+            const durationMs = Number.isFinite(durationNumber) ? Math.max(0, durationNumber * 1000) : 3000;
+            const containerId = '__runJsCodeToastContainer';
+            let container = document.getElementById(containerId);
+
+            if (!container) {
+                container = document.createElement('div');
+                container.id = containerId;
+                Object.assign(container.style, {
+                    position: 'fixed',
+                    top: '24px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: '2147483647',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                    pointerEvents: 'none',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                });
+                document.documentElement.appendChild(container);
+            }
+
+            const toastEle = document.createElement('div');
+            toastEle.textContent = msg instanceof HTMLElement ? msg.innerText : String(msg ?? '');
+            Object.assign(toastEle.style, {
+                maxWidth: 'min(420px, calc(100vw - 32px))',
+                padding: '10px 14px',
+                borderRadius: '6px',
+                background: 'rgba(32, 33, 36, 0.94)',
+                color: '#fff',
+                fontSize: '14px',
+                lineHeight: '20px',
+                boxShadow: '0 6px 18px rgba(0, 0, 0, 0.22)',
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap',
+                opacity: '0',
+                transition: 'opacity 160ms ease, transform 160ms ease',
+                transform: 'translateY(-6px)'
+            });
+            container.appendChild(toastEle);
+
+            requestAnimationFrame(() => {
+                toastEle.style.opacity = '1';
+                toastEle.style.transform = 'translateY(0)';
+            });
+
+            const close = () => {
+                toastEle.style.opacity = '0';
+                toastEle.style.transform = 'translateY(-6px)';
+                setTimeout(() => {
+                    toastEle.remove();
+                    if (container.childElementCount === 0) {
+                        container.remove();
+                    }
+                }, 180);
+            };
+
+            setTimeout(close, durationMs);
+            return close;
         }
     }
 
