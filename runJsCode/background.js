@@ -195,56 +195,64 @@ function preLoadCode(onloadToken = '') {
         }
     }
 
+    function _waitForElementBase(selector, onlyOne = true, interval = 100, maxTimeout = 60 * 1000) {
+        return new Promise((resolve, reject) => {
+            const startTime = Date.now();
+            let timerId = null;
+            let settled = false;
+
+            const finish = (callback, value) => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                if (timerId) {
+                    clearTimeout(timerId);
+                }
+                callback(value);
+            };
+
+            const checkElement = () => {
+                if (settled) {
+                    return;
+                }
+
+                if (onlyOne) {
+                    const element = document.querySelector(selector);
+                    if (element) {
+                        finish(resolve, element);
+                        return;
+                    }
+                } else {
+                    const elements = document.querySelectorAll(selector);
+                    if (elements.length > 0) {
+                        finish(resolve, Array.from(elements));
+                        return;
+                    }
+                }
+
+                const elapsed = Date.now() - startTime;
+                if (elapsed >= maxTimeout) {
+                    finish(reject, new Error(`_waitForElement: 等待元素超时，selector="${selector}", maxTimeout=${maxTimeout}ms`));
+                    return;
+                }
+
+                timerId = setTimeout(checkElement, Math.min(interval, maxTimeout - elapsed));
+            };
+
+            // 初始检查
+            checkElement();
+        });
+    }
     if (!window._waitForElement) {
-        window._waitForElement = function (selector, onlyOne = false, interval = 100, maxTimeout = 60 * 1000) {
-            return new Promise((resolve, reject) => {
-                const startTime = Date.now();
-                let timerId = null;
-                let settled = false;
-
-                const finish = (callback, value) => {
-                    if (settled) {
-                        return;
-                    }
-                    settled = true;
-                    if (timerId) {
-                        clearTimeout(timerId);
-                    }
-                    callback(value);
-                };
-
-                const checkElement = () => {
-                    if (settled) {
-                        return;
-                    }
-
-                    if (onlyOne) {
-                        const element = document.querySelector(selector);
-                        if (element) {
-                            finish(resolve, element);
-                            return;
-                        }
-                    } else {
-                        const elements = document.querySelectorAll(selector);
-                        if (elements.length > 0) {
-                            finish(resolve, Array.from(elements));
-                            return;
-                        }
-                    }
-
-                    const elapsed = Date.now() - startTime;
-                    if (elapsed >= maxTimeout) {
-                        finish(reject, new Error(`_waitForElement: 等待元素超时，selector="${selector}", maxTimeout=${maxTimeout}ms`));
-                        return;
-                    }
-
-                    timerId = setTimeout(checkElement, Math.min(interval, maxTimeout - elapsed));
-                };
-
-                // 初始检查
-                checkElement();
-            });
-        };
+        window._waitForElement = function (selector, interval = 100, maxTimeout = 60 * 1000) {
+            return _waitForElementBase(selector, true, interval, maxTimeout)
+        }
+    }
+    if (!window._waitForElements) {
+        window._waitForElements = function (selector, interval = 100, maxTimeout = 60 * 1000) {
+            return _waitForElementBase(selector, false, interval, maxTimeout)
+        }
     }
 
     if (!window._copy) {
@@ -252,6 +260,7 @@ function preLoadCode(onloadToken = '') {
             if (text instanceof HTMLElement) {
                 text = text.innerText.trim();
             }
+
             function legacyCopy(text) {
                 return new Promise((resolve, reject) => {
                     const textarea = document.createElement('textarea');
@@ -274,6 +283,7 @@ function preLoadCode(onloadToken = '') {
                     }
                 });
             }
+
             if (navigator.clipboard) {
                 return navigator.clipboard.writeText(text).catch(() => {
                     return legacyCopy(text);
