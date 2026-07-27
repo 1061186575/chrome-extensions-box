@@ -196,7 +196,7 @@ function preLoadCode(onloadToken = '') {
     }
 
     if (!window._waitForElement) {
-        window._waitForElement = function (selector, onlyOne = false, timeout = 100, maxTimeout = 60 * 1000) {
+        window._waitForElement = function (selector, onlyOne = false, interval = 100, maxTimeout = 60 * 1000) {
             return new Promise((resolve, reject) => {
                 const startTime = Date.now();
                 let timerId = null;
@@ -238,7 +238,7 @@ function preLoadCode(onloadToken = '') {
                         return;
                     }
 
-                    timerId = setTimeout(checkElement, Math.min(timeout, maxTimeout - elapsed));
+                    timerId = setTimeout(checkElement, Math.min(interval, maxTimeout - elapsed));
                 };
 
                 // 初始检查
@@ -250,23 +250,43 @@ function preLoadCode(onloadToken = '') {
     if (!window._copy) {
         window._copy = function copy(text) {
             if (text instanceof HTMLElement) {
-                text = text.innerText
+                text = text.innerText.trim();
             }
-            let input = document.createElement('textarea');
-            document.body.appendChild(input);
-            input.value = text;
-            input.select();
-            if (!document.execCommand('copy')) {
-                alert('复制失败');
+            function legacyCopy(text) {
+                return new Promise((resolve, reject) => {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    textarea.style.position = 'fixed';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+
+                    try {
+                        const isSuccess = document.execCommand('copy');
+                        if (isSuccess) {
+                            resolve();
+                        } else {
+                            reject(new Error('复制失败'));
+                        }
+                    } catch (err) {
+                        reject(err);
+                    } finally {
+                        document.body.removeChild(textarea);
+                    }
+                });
             }
-            document.body.removeChild(input);
+            if (navigator.clipboard) {
+                return navigator.clipboard.writeText(text).catch(() => {
+                    return legacyCopy(text);
+                });
+            }
+            return legacyCopy(text);
         }
     }
 
     if (!window._toast) {
-        window._toast = function toast(msg, duration = 3) {
-            const durationNumber = Number(duration);
-            const durationMs = Number.isFinite(durationNumber) ? Math.max(0, durationNumber * 1000) : 3000;
+        window._toast = function toast(msg, durationMs = 3000) {
+            const durationNumber = Number(durationMs);
+            durationMs = Number.isFinite(durationNumber) ? Math.max(0, durationNumber) : 3000;
             const containerId = '__runJsCodeToastContainer';
             let container = document.getElementById(containerId);
 
