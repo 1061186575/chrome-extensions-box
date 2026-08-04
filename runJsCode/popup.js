@@ -195,6 +195,12 @@ class UIManager {
     async initializeSearch() {
         this.searchQuery = await this.dataManager.getSearchQuery();
         document.getElementById('searchInput').value = this.searchQuery;
+
+        // 重新打开弹窗时，如果存在搜索词，自动恢复为“全部”分类
+        if (this.searchQuery && this.currentCategory !== this.dataManager.allCategory) {
+            this.currentCategory = this.dataManager.allCategory;
+            await this.dataManager.setCurrentCategory(this.currentCategory);
+        }
     }
 
     async renderCategories() {
@@ -230,9 +236,22 @@ class UIManager {
         });
     }
 
-    async switchCategory(category) {
+    async switchCategory(category, clearSearch) {
+        if (category === this.currentCategory) {
+            return;
+        }
+
         this.currentCategory = category;
-        await this.dataManager.setCurrentCategory(category);
+        const storageTasks = [this.dataManager.setCurrentCategory(category)];
+
+        // 手动切换到其他分类时，自动清空搜索框及持久化搜索内容
+        if (clearSearch !== false) {
+            this.searchQuery = '';
+            document.getElementById('searchInput').value = '';
+            storageTasks.push(this.dataManager.setSearchQuery(this.searchQuery));
+        }
+
+        await Promise.all(storageTasks);
 
         // 更新分类标签的激活状态
         document.querySelectorAll('.category-tab').forEach(tab => {
@@ -272,10 +291,16 @@ class UIManager {
         });
 
         // 搜索相关事件
-        document.getElementById('searchInput').addEventListener('input', (e) => {
+        document.getElementById('searchInput').addEventListener('input', async (e) => {
             this.searchQuery = e.target.value.trim();
-            this.dataManager.setSearchQuery(this.searchQuery);
-            this.renderList();
+            await this.dataManager.setSearchQuery(this.searchQuery);
+
+            // 输入搜索内容时，自动切换到“全部”分类，并保留搜索词
+            if (this.searchQuery && this.currentCategory !== this.dataManager.allCategory) {
+                await this.switchCategory(this.dataManager.allCategory, false);
+            } else {
+                this.renderList();
+            }
         });
 
         document.getElementById('clearSearchBtn').addEventListener('click', () => {
