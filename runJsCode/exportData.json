@@ -2,7 +2,7 @@
   {
     "autoRun": false,
     "category": "全部",
-    "code": "alert(\"Hello World\")",
+    "code": "_toast(\"Hello World\")",
     "remark": "test",
     "url": ""
   },

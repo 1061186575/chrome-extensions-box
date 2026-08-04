@@ -2,13 +2,13 @@
 const defaultList = [
     {
         url: '',
-        code: 'alert("Hello World")',
+        code: '_toast("Hello World")',
         remark: 'Hello',
         autoRun: false,
     },
     {
         url: 'https://www.baidu.com',
-        code: 'alert("要搜索什么?")',
+        code: '_toast("要搜索什么?")',
         remark: '切换到百度自动执行',
         autoRun: true,
     },
