@@ -176,6 +176,8 @@ function genTr(...arr) {
             colorClass = 'negative';
         } else if (firstChar === '+') {
             colorClass = 'positive';
+        } else if (parseFloat(value) === 0 && lastChar === '%') {
+            colorClass = '';
         } else if (/\d/.test(firstChar) && lastChar === '%') {
             colorClass = 'positive';
         }
@@ -215,14 +217,19 @@ function getGold() {
 
 function getNDX() {
     // https://quote.eastmoney.com/gb/zsNDX.html
+    // https://quote.eastmoney.com/gb/zsNDX100.html
     let now = Date.now()
     let callbackName = `jQuery371016327434452843647_${now}`
-    return fetch(`https://push2.eastmoney.com/api/qt/clist/get?np=1&fltt=1&invt=2&cb=${callbackName}&fs=i%3A100.DJIA%2Ci%3A100.SPX%2Ci%3A100.NDX%2Ci%3A100.TSX%2Ci%3A100.BVSP%2Ci%3A100.MXX&fields=f12%2Cf13%2Cf14%2Cf292%2Cf1%2Cf2%2Cf4%2Cf3%2Cf152%2Cf17%2Cf18%2Cf15%2Cf16%2Cf7%2Cf124&fid=f3&pn=1&pz=20&po=1&dect=1&ut=fa4fd6943c7b386f272d6893dbfba10b&wbp2u=%7C0%7C0%7C0%7Cweb&_=${now + 3}`)
+    // https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=1&cb=jQuery351036492793292695_1787723047269&fields=f58%2Cf107%2Cf57%2Cf43%2Cf59%2Cf169%2Cf170%2Cf152%2Cf46%2Cf60%2Cf44%2Cf45%2Cf171%2Cf47%2Cf86%2Cf292&secid=100.NDX&ut=fa5fd1943c7b386f172d6893dbfba10b&wbp2u=%7C0%7C0%7C0%7Cweb&dect=1&_=1787723047270
+    // https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=1&cb=jQuery351089441917184841_1787723118578&fields=f58%2Cf107%2Cf57%2Cf43%2Cf59%2Cf169%2Cf170%2Cf152%2Cf46%2Cf60%2Cf44%2Cf45%2Cf171%2Cf47%2Cf86%2Cf292&secid=100.NDX100&ut=fa5fd1943c7b386f172d6893dbfba10b&wbp2u=%7C0%7C0%7C0%7Cweb&dect=1&_=1787723118579
+    // let name = 'NDX'
+    let name = 'NDX100'
+    return fetch(`https://push2.eastmoney.com/api/qt/clist/get?np=1&fltt=1&invt=2&cb=${callbackName}&fs=i%3A100.DJIA%2Ci%3A100.SPX%2Ci%3A100.${name}%2Ci%3A100.TSX%2Ci%3A100.BVSP%2Ci%3A100.MXX&fields=f12%2Cf13%2Cf14%2Cf292%2Cf1%2Cf2%2Cf4%2Cf3%2Cf152%2Cf17%2Cf18%2Cf15%2Cf16%2Cf7%2Cf124&fid=f3&pn=1&pz=20&po=1&dect=1&ut=fa4fd6943c7b386f272d6893dbfba10b&wbp2u=%7C0%7C0%7C0%7Cweb&_=${now + 3}`)
         .then(res => res.text())
         .then(text => {
             // console.log('text', text)
             let jsonStr = text.replace(callbackName, '').replace(/^\(/, '').replace(/\);$/, '');
-            let obj = JSON.parse(jsonStr).data.diff.find(d => d.f14 === '纳斯达克')
+            let obj = JSON.parse(jsonStr).data.diff.find(d => d.f12 === name)
             return {
                 name: obj.f14,
                 value: obj.f2 / 100,
@@ -302,9 +309,9 @@ async function renderBTC() {
     console.log('exchangeRateItem', exchangeRateItem)
 
     // 美元兑换人民币汇率
-    let exchangeRate = exchangeRateItem.value
+    let exchangeRate = exchangeRateItem?.value || 7;
 
-    let title = `<tr class="section-header"><td>外盘:</td></tr>`
+    let title = `<tr class="section-header"><td>其他:</td></tr>`
     let NDXContent = ''
     let GoldContent = ''
     let BTCContent = ''
@@ -341,7 +348,8 @@ async function renderBTC() {
             url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&type=&token=ed8644c9d251add88e27b65506f6e5da&nid=101.GC00Y&timespan=${get10LenTime()}`,
             action: 'showMinImage',
         }, {
-            value: (GoldItem.value / 31.1035 * exchangeRate).toFixed(2),
+            // value: (GoldItem.value / 31.1035 * exchangeRate).toFixed(2),
+            value: GoldItem.value,
             url: `https://webquoteklinepic.eastmoney.com/GetPic.aspx?nid=101.GC00Y&type=&unitWidth=-6&ef=&formula=KDJ&AT=1&imageType=KXL&timespan=${get10LenTime()}`,
             action: 'showDayImage',
         }, {
