@@ -96,44 +96,107 @@ function checkRefreshCallback(tab) {
         id = new URL(tab.url).searchParams.get('__runJsCode__onload_id');
     } catch (e) {
     }
-    if (!id) {
+
+    if (id) {
+        const storageKey = `__runJsCode__onload_${id}`;
+        chrome.storage.local.get([storageKey], (result) => {
+            const item = result[storageKey];
+            chrome.storage.local.remove(storageKey);
+
+            if (!item || Date.now() > item.expiresAt) {
+                console.warn('_onload: 未找到回调或回调已过期', id);
+                return;
+            }
+
+            executeOnloadCallback(tab, item.callback, item.params, '__runJsCode__onload_id');
+        });
         return;
     }
 
-    const storageKey = `__runJsCode__onload_${id}`;
-    chrome.storage.local.get([storageKey], (result) => {
-        const item = result[storageKey];
-        chrome.storage.local.remove(storageKey);
+    checkUrlCallback(tab);
+}
 
-        if (!item || Date.now() > item.expiresAt) {
-            console.warn('_onload: 未找到回调或回调已过期', id);
+function decodeUrlCallback(value) {
+    try {
+        return decodeURIComponent(atob(value));
+    } catch (e) {
+        console.warn('_onload: URL 回调参数解码失败', e);
+        return '';
+    }
+}
+
+function getUrlCallbackParams(value) {
+    if (!value) {
+        return 'undefined';
+    }
+
+    try {
+        const params = JSON.parse(decodeUrlCallback(value));
+        return JSON.stringify(params);
+    } catch (e) {
+        console.warn('_onload: URL 回调参数解析失败', e);
+        return '';
+    }
+}
+
+function checkUrlCallback(tab) {
+    let url;
+    try {
+        url = new URL(tab.url);
+    } catch (e) {
+        return;
+    }
+
+    const encodedCallback = url.searchParams.get('__runJsCode__onload_callback');
+    if (!encodedCallback) {
+        return;
+    }
+
+    const callbackCode = decodeUrlCallback(encodedCallback);
+    const callbackParams = getUrlCallbackParams(url.searchParams.get('__runJsCode__callback_params'));
+    if (!callbackCode || !callbackParams) {
+        return;
+    }
+
+    chrome.storage.local.get(['list'], (result) => {
+        const list = result.list || [];
+        const savedItem = list.find(item => item && item.code === callbackCode);
+        if (!savedItem) {
+            console.warn('_onload: URL 回调代码与插件已保存代码不一致，已阻止执行');
             return;
         }
 
-        const token = createOnloadId();
-        setupOnloadBridge(tab, token, () => {
-            chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                world: "MAIN",
-                func: (code) => {
-                    try {
-                        const urlParams = new URLSearchParams(window.location.search);
-                        urlParams.delete('__runJsCode__onload_id');
-                        const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
-                        history.replaceState(null, '', newUrl);
+        executeOnloadCallback(tab, savedItem.code, callbackParams, [
+            '__runJsCode__onload_callback',
+            '__runJsCode__callback_params'
+        ]);
+    });
+}
 
-                        const blob = new Blob([`;(function () { \ntry {\n${code}  \n} catch (e) { console.log('checkRefreshCallback error:', e) } finally { if (window._runJsCodePluginEnv === true) window._runJsCodePluginEnv = undefined; } })();`], { type: 'application/javascript' });
-                        const url = URL.createObjectURL(blob);
-                        const script = document.createElement('script');
-                        script.src = url;
-                        document.head.appendChild(script);
-                        URL.revokeObjectURL(url);
-                    } catch (e) {
-                        console.error('_onload: 出错', e);
-                    }
-                },
-                args: [`${getPreLoadCode(token)} \n(${item.callback})(${item.params});`]
-            });
+function executeOnloadCallback(tab, callbackCode, callbackParams, paramsToDelete) {
+    const token = createOnloadId();
+    setupOnloadBridge(tab, token, () => {
+        chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            world: "MAIN",
+            func: (code, params, keysToDelete) => {
+                try {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    keysToDelete.forEach(key => urlParams.delete(key));
+                    const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
+                    history.replaceState(null, '', newUrl);
+
+                    const blob = new Blob([`;(function () { \ntry {\n${code}  \n} catch (e) { console.log('checkRefreshCallback error:', e) } finally { if (window._runJsCodePluginEnv === true) window._runJsCodePluginEnv = undefined; } })();`], { type: 'application/javascript' });
+                    const url = URL.createObjectURL(blob);
+                    const script = document.createElement('script');
+                    script.src = url;
+                    document.head.appendChild(script);
+                    URL.revokeObjectURL(url);
+                } catch (e) {
+                    console.error('_onload: 出错', e);
+                }
+            },
+            args: [`${getPreLoadCode(token)} \n(${callbackCode})(${callbackParams});`, callbackParams, paramsToDelete]
         });
     });
 }
