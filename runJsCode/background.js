@@ -172,7 +172,8 @@ function checkUrlCallback(tab) {
 
         executeOnloadCallback(tab, savedItem.code, callbackParams, [
             '__runJsCode__onload_callback',
-            '__runJsCode__callback_params'
+            '__runJsCode__callback_params',
+            '__runJsCode__runName',
         ]);
     });
 }
@@ -318,6 +319,7 @@ function preLoadCode(onloadToken = '') {
             checkElement();
         });
     }
+
     if (!window._waitForElement) {
         window._waitForElement = function (selector, interval = 100, maxTimeout = 60 * 1000) {
             return _waitForElementBase(selector, true, interval, maxTimeout)
@@ -510,9 +512,17 @@ function preLoadCode(onloadToken = '') {
         window._onload.__runJsCodeHelper = true;
     }
 
-    window._getOnloadQueryStr = function (functionOrCodeStr, paramsObj) {
-        const paramsStr = paramsObj ? `&__runJsCode__callback_params=${btoa(encodeURIComponent(JSON.stringify(paramsObj)))}` : '';
-        return `?__runJsCode__onload_callback=${btoa(encodeURIComponent(functionOrCodeStr))}${paramsStr}`
+    window._getOnloadQueryStr = function (functionOrCodeStr, paramsObj, url, runName) {
+        const urlObj = new URL(url || location.href);
+        if (runName) {
+            // 用来描述这段 base64 代码是干嘛的
+            urlObj.searchParams.set('__runJsCode__runName', encodeURIComponent(runName));
+        }
+        urlObj.searchParams.set('__runJsCode__onload_callback', btoa(encodeURIComponent(functionOrCodeStr)));
+        if (paramsObj) {
+            urlObj.searchParams.set('__runJsCode__callback_params', btoa(encodeURIComponent(JSON.stringify(paramsObj))));
+        }
+        return urlObj.toString();
     }
 
 }
