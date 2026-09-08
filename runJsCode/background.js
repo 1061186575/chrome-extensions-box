@@ -14,14 +14,17 @@ function setupOnloadBridge(tab, token, callback) {
         target: { tabId: tab.id },
         world: "ISOLATED",
         func: (token) => {
-            window.__runJsCodeOnloadToken = token;
+            if (!window.__runJsCodeOnloadTokens) {
+                window.__runJsCodeOnloadTokens = new Set();
+            }
+            window.__runJsCodeOnloadTokens.add(token);
             if (window.__runJsCodeOnloadBridgeInited) {
                 return;
             }
             window.__runJsCodeOnloadBridgeInited = true;
             window.addEventListener('message', (event) => {
                 const data = event.data;
-                if (event.source !== window || !data || data.type !== '__runJsCode__save_onload' || data.token !== window.__runJsCodeOnloadToken) {
+                if (event.source !== window || !data || data.type !== '__runJsCode__save_onload' || !window.__runJsCodeOnloadTokens.has(data.token)) {
                     return;
                 }
                 chrome.storage.local.set({
