@@ -108,7 +108,7 @@ function checkRefreshCallback(tab) {
                 return;
             }
 
-            executeOnloadCallback(tab, item.callback, item.params, '__runJsCode__onload_id');
+            executeOnloadCallback(tab, item.callback, item.params, ['__runJsCode__onload_id']);
         });
         return;
     }
@@ -160,9 +160,10 @@ function checkUrlCallback(tab) {
 
     chrome.storage.local.get(['list'], (result) => {
         const list = result.list || [];
-        const savedItem = list.find(item => item && item.code === callbackCode);
+        const savedItem = list.find(item => item && String(item.code).trim() === String(callbackCode).trim());
         if (!savedItem) {
-            console.warn('_onload: URL 回调代码与插件已保存代码不一致，已阻止执行');
+            console.warn('_onload: URL 回调代码与插件已保存代码不一致，已阻止执行:');
+            console.log(callbackCode);
             return;
         }
 
@@ -175,6 +176,13 @@ function checkUrlCallback(tab) {
 
 function executeOnloadCallback(tab, callbackCode, callbackParams, paramsToDelete) {
     const token = createOnloadId();
+    const normalizedCallbackCode = callbackCode.trim();
+    const isFunctionCode = /^(?:async\s+)?function(?:\s+[A-Za-z_$][\w$]*)?\s*\(/.test(normalizedCallbackCode)
+        || /^(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/.test(normalizedCallbackCode);
+    const executionCode = isFunctionCode
+        ? `(${callbackCode})(${callbackParams});`
+        : callbackCode;
+
     setupOnloadBridge(tab, token, () => {
         chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -196,7 +204,7 @@ function executeOnloadCallback(tab, callbackCode, callbackParams, paramsToDelete
                     console.error('_onload: 出错', e);
                 }
             },
-            args: [`${getPreLoadCode(token)} \n(${callbackCode})(${callbackParams});`, callbackParams, paramsToDelete]
+            args: [`${getPreLoadCode(token)} \n${executionCode}`, callbackParams, paramsToDelete]
         });
     });
 }
@@ -497,6 +505,11 @@ function preLoadCode(onloadToken = '') {
             }
         }
         window._onload.__runJsCodeHelper = true;
+    }
+
+    window._getOnloadQueryStr = function (functionOrCodeStr, paramsObj) {
+        const paramsStr = paramsObj ? `&__runJsCode__callback_params=${btoa(encodeURIComponent(JSON.stringify(paramsObj)))}` : '';
+        return `?__runJsCode__onload_callback=${btoa(encodeURIComponent(functionOrCodeStr))}${paramsStr}`
     }
 
 }
