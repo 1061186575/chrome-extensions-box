@@ -252,8 +252,8 @@ function checkUrlCallback(tab) {
         const list = result.list || [];
         const savedItem = list.find(item => item && String(item.code).trim() === String(callbackCode).trim());
         if (!savedItem) {
-            warnOnPage(tab, '_onload: URL 回调代码与插件已保存代码不一致，已阻止执行:');
-            console.log(callbackCode);
+            warnOnPage(tab, '_onload: URL 回调代码与插件已保存代码不一致，已阻止执行');
+            console.log('callbackCode', callbackCode);
             return;
         }
 
