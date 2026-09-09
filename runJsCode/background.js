@@ -5,6 +5,103 @@ function createOnloadId() {
     return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+function getMd5(value) {
+    const input = unescape(encodeURIComponent(String(value)));
+    const rotateLeft = (number, count) => (number << count) | (number >>> (32 - count));
+    const addUnsigned = (left, right) => {
+        const leftHigh = left & 0x80000000;
+        const rightHigh = right & 0x80000000;
+        const leftMiddle = left & 0x40000000;
+        const rightMiddle = right & 0x40000000;
+        const result = (left & 0x3fffffff) + (right & 0x3fffffff);
+
+        if (leftMiddle & rightMiddle) {
+            return result ^ 0x80000000 ^ leftHigh ^ rightHigh;
+        }
+        if (leftMiddle | rightMiddle) {
+            return result & 0x40000000
+                ? result ^ 0xc0000000 ^ leftHigh ^ rightHigh
+                : result ^ 0x40000000 ^ leftHigh ^ rightHigh;
+        }
+        return result ^ leftHigh ^ rightHigh;
+    };
+    const transform = (operation, a, b, c, d, word, shift, constant) => {
+        const result = addUnsigned(a, addUnsigned(addUnsigned(operation(b, c, d), word), constant));
+        return addUnsigned(rotateLeft(result, shift), b);
+    };
+    const f = (x, y, z) => (x & y) | (~x & z);
+    const g = (x, y, z) => (x & z) | (y & ~z);
+    const h = (x, y, z) => x ^ y ^ z;
+    const i = (x, y, z) => y ^ (x | ~z);
+    const words = [];
+
+    for (let index = 0; index < input.length; index += 1) {
+        const wordIndex = index >>> 2;
+        words[wordIndex] = (words[wordIndex] || 0) | (input.charCodeAt(index) << ((index % 4) * 8));
+    }
+
+    const bitLength = input.length * 8;
+    words[bitLength >>> 5] = (words[bitLength >>> 5] || 0) | (0x80 << (bitLength % 32));
+    words[(((bitLength + 64) >>> 9) << 4) + 14] = bitLength;
+
+    let a = 0x67452301;
+    let b = 0xefcdab89;
+    let c = 0x98badcfe;
+    let d = 0x10325476;
+    const shifts = [
+        7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+        5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+        4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+        6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21
+    ];
+    const constants = Array.from({ length: 64 }, (_, index) => Math.floor(Math.abs(Math.sin(index + 1)) * 0x100000000));
+
+    for (let offset = 0; offset < words.length; offset += 16) {
+        const previousA = a;
+        const previousB = b;
+        const previousC = c;
+        const previousD = d;
+
+        for (let round = 0; round < 64; round += 1) {
+            let operation;
+            let wordIndex;
+
+            if (round < 16) {
+                operation = f;
+                wordIndex = round;
+            } else if (round < 32) {
+                operation = g;
+                wordIndex = (5 * round + 1) % 16;
+            } else if (round < 48) {
+                operation = h;
+                wordIndex = (3 * round + 5) % 16;
+            } else {
+                operation = i;
+                wordIndex = (7 * round) % 16;
+            }
+
+            const nextB = transform(operation, a, b, c, d, words[offset + wordIndex] || 0, shifts[round], constants[round]);
+            a = d;
+            d = c;
+            c = b;
+            b = nextB;
+        }
+
+        a = addUnsigned(a, previousA);
+        b = addUnsigned(b, previousB);
+        c = addUnsigned(c, previousC);
+        d = addUnsigned(d, previousD);
+    }
+
+    return [a, b, c, d].map(number => {
+        let result = '';
+        for (let index = 0; index < 4; index += 1) {
+            result += ((number >>> (index * 8)) & 0xff).toString(16).padStart(2, '0');
+        }
+        return result;
+    }).join('');
+}
+
 function getPreLoadCode(token = '') {
     return `(${preLoadCode.toString()})(${JSON.stringify(token)});`;
 }
@@ -238,27 +335,43 @@ function checkUrlCallback(tab) {
     }
 
     const encodedCallback = url.searchParams.get('__runJsCode__onload_callback');
-    if (!encodedCallback) {
+    const callbackMd5 = url.searchParams.get('__runJsCode__onload_md5')?.trim().toLowerCase();
+    if (!encodedCallback && !callbackMd5) {
         return;
     }
 
-    const callbackCode = decodeUrlCallback(encodedCallback, tab);
+    if (callbackMd5 && !/^[a-f\d]{32}$/.test(callbackMd5)) {
+        warnOnPage(tab, '_onload: URL 回调 MD5 格式不正确，已阻止执行');
+        return;
+    }
+
+    const callbackCode = encodedCallback ? decodeUrlCallback(encodedCallback, tab) : '';
     const callbackParams = getUrlCallbackParams(url.searchParams.get('__runJsCode__callback_params'), tab);
-    if (!callbackCode || !callbackParams) {
+    if ((encodedCallback && !callbackCode) || !callbackParams) {
         return;
     }
 
     chrome.storage.local.get(['list'], (result) => {
         const list = result.list || [];
-        const savedItem = list.find(item => item && String(item.code).trim() === String(callbackCode).trim());
+        const normalizedCallbackCode = String(callbackCode).trim();
+        const savedItem = list.find(item => {
+            if (!item) {
+                return false;
+            }
+            const savedCode = String(item.code).trim();
+            return callbackMd5 ? getMd5(savedCode) === callbackMd5 : savedCode === normalizedCallbackCode;
+        });
         if (!savedItem) {
-            warnOnPage(tab, '_onload: URL 回调代码与插件已保存代码不一致，已阻止执行');
-            console.log('callbackCode', callbackCode);
+            warnOnPage(tab, callbackMd5
+                ? '_onload: URL 回调 MD5 与插件已保存代码不一致，已阻止执行'
+                : '_onload: URL 回调代码与插件已保存代码不一致，已阻止执行');
+            console.log(callbackMd5 ? 'callbackMd5' : 'callbackCode', callbackMd5 || callbackCode);
             return;
         }
 
         executeOnloadCallback(tab, savedItem.code, callbackParams, [
             '__runJsCode__onload_callback',
+            '__runJsCode__onload_md5',
             '__runJsCode__callback_params',
             '__runJsCode__runName',
         ]);
@@ -599,14 +712,21 @@ function preLoadCode(onloadToken = '') {
         window._onload.__runJsCodeHelper = true;
     }
 
-    window._getOnloadQueryStr = function (functionOrCodeStr, paramsObj, url, runName) {
+    // 为了防止每次加载的代码太多了，所以不提供 MD5 方法, 需要从参数传 md5Str
+    window._getOnloadQueryStr = function (functionOrCodeStr, paramsObj, url, runName, md5Str) {
         const urlObj = new URL(url || location.href);
         if (runName) {
-            // 用来描述这段 base64 代码是干嘛的
+            // 用来描述这段代码有什么功能
             urlObj.searchParams.set('__runJsCode__runName', encodeURIComponent(runName));
         }
-        urlObj.searchParams.set('__runJsCode__onload_callback', btoa(encodeURIComponent(functionOrCodeStr)));
-        if (paramsObj) {
+        if (md5Str) {
+            urlObj.searchParams.delete('__runJsCode__onload_callback');
+            urlObj.searchParams.set('__runJsCode__onload_md5', md5Str);
+        } else {
+            urlObj.searchParams.delete('__runJsCode__onload_md5');
+            urlObj.searchParams.set('__runJsCode__onload_callback', btoa(encodeURIComponent(functionOrCodeStr)));
+        }
+        if (paramsObj !== undefined) {
             urlObj.searchParams.set('__runJsCode__callback_params', btoa(encodeURIComponent(JSON.stringify(paramsObj))));
         }
         return urlObj.toString();
