@@ -353,13 +353,15 @@ function checkUrlCallback(tab) {
 
     chrome.storage.local.get(['list'], (result) => {
         const list = result.list || [];
-        const normalizedCallbackCode = String(callbackCode).trim();
         const savedItem = list.find(item => {
             if (!item) {
                 return false;
             }
-            const savedCode = String(item.code).trim();
-            return callbackMd5 ? getMd5(savedCode) === callbackMd5 : savedCode === normalizedCallbackCode;
+            const savedCode = String(item.code);
+            if (callbackMd5) {
+                return getMd5(savedCode) === callbackMd5 || getMd5(savedCode.trim()) === callbackMd5
+            }
+            return savedCode.trim() === callbackCode.trim();
         });
         if (!savedItem) {
             warnOnPage(tab, callbackMd5
