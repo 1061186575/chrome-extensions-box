@@ -9,6 +9,93 @@ function getPreLoadCode(token = '') {
     return `(${preLoadCode.toString()})(${JSON.stringify(token)});`;
 }
 
+function warnOnPage(tab, ...args) {
+    console.warn(...args);
+
+    if (!tab?.id) {
+        return;
+    }
+
+    const message = args.map((arg) => {
+        if (arg instanceof Error) {
+            return arg.stack || arg.message;
+        }
+        if (typeof arg === 'string') {
+            return arg;
+        }
+        try {
+            return JSON.stringify(arg);
+        } catch (e) {
+            return String(arg);
+        }
+    }).join(' ');
+
+    chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        world: 'ISOLATED',
+        func: (warningMessage) => {
+            const containerId = '__runJsCodeWarningContainer';
+            let container = document.getElementById(containerId);
+
+            if (!container) {
+                container = document.createElement('div');
+                container.id = containerId;
+                Object.assign(container.style, {
+                    position: 'fixed',
+                    top: '24px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: '2147483647',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                    pointerEvents: 'none',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+                });
+                document.documentElement.appendChild(container);
+            }
+
+            const warningEle = document.createElement('div');
+            warningEle.textContent = warningMessage;
+            Object.assign(warningEle.style, {
+                maxWidth: 'min(560px, calc(100vw - 32px))',
+                padding: '10px 14px',
+                border: '1px solid #f0b429',
+                borderRadius: '6px',
+                background: '#fff7d6',
+                color: '#7a4d00',
+                fontSize: '14px',
+                lineHeight: '20px',
+                boxShadow: '0 6px 18px rgba(0, 0, 0, 0.18)',
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap',
+                opacity: '0',
+                transition: 'opacity 160ms ease, transform 160ms ease',
+                transform: 'translateY(-6px)'
+            });
+            container.appendChild(warningEle);
+
+            requestAnimationFrame(() => {
+                warningEle.style.opacity = '1';
+                warningEle.style.transform = 'translateY(0)';
+            });
+
+            setTimeout(() => {
+                warningEle.style.opacity = '0';
+                warningEle.style.transform = 'translateY(-6px)';
+                setTimeout(() => {
+                    warningEle.remove();
+                    if (container.childElementCount === 0) {
+                        container.remove();
+                    }
+                }, 180);
+            }, 5000);
+        },
+        args: [message]
+    }).catch(() => {});
+}
+
 function setupOnloadBridge(tab, token, callback) {
     chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -107,7 +194,7 @@ function checkRefreshCallback(tab) {
             chrome.storage.local.remove(storageKey);
 
             if (!item || Date.now() > item.expiresAt) {
-                console.warn('_onload: 未找到回调或回调已过期', id);
+                warnOnPage(tab, '_onload: 未找到回调或回调已过期', id);
                 return;
             }
 
@@ -119,25 +206,25 @@ function checkRefreshCallback(tab) {
     checkUrlCallback(tab);
 }
 
-function decodeUrlCallback(value) {
+function decodeUrlCallback(value, tab) {
     try {
         return decodeURIComponent(atob(value));
     } catch (e) {
-        console.warn('_onload: URL 回调参数解码失败', e);
+        warnOnPage(tab, '_onload: URL 回调参数解码失败', e);
         return '';
     }
 }
 
-function getUrlCallbackParams(value) {
+function getUrlCallbackParams(value, tab) {
     if (!value) {
         return 'undefined';
     }
 
     try {
-        const params = JSON.parse(decodeUrlCallback(value));
+        const params = JSON.parse(decodeUrlCallback(value, tab));
         return JSON.stringify(params);
     } catch (e) {
-        console.warn('_onload: URL 回调参数解析失败', e);
+        warnOnPage(tab, '_onload: URL 回调参数解析失败', e);
         return '';
     }
 }
@@ -155,8 +242,8 @@ function checkUrlCallback(tab) {
         return;
     }
 
-    const callbackCode = decodeUrlCallback(encodedCallback);
-    const callbackParams = getUrlCallbackParams(url.searchParams.get('__runJsCode__callback_params'));
+    const callbackCode = decodeUrlCallback(encodedCallback, tab);
+    const callbackParams = getUrlCallbackParams(url.searchParams.get('__runJsCode__callback_params'), tab);
     if (!callbackCode || !callbackParams) {
         return;
     }
@@ -165,7 +252,7 @@ function checkUrlCallback(tab) {
         const list = result.list || [];
         const savedItem = list.find(item => item && String(item.code).trim() === String(callbackCode).trim());
         if (!savedItem) {
-            console.warn('_onload: URL 回调代码与插件已保存代码不一致，已阻止执行:');
+            warnOnPage(tab, '_onload: URL 回调代码与插件已保存代码不一致，已阻止执行:');
             console.log(callbackCode);
             return;
         }
