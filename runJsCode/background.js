@@ -190,7 +190,8 @@ function warnOnPage(tab, ...args) {
             }, 5000);
         },
         args: [message]
-    }).catch(() => {});
+    }).catch(() => {
+    });
 }
 
 function setupOnloadBridge(tab, token, callback) {
@@ -714,24 +715,61 @@ function preLoadCode(onloadToken = '') {
         window._onload.__runJsCodeHelper = true;
     }
 
-    // 为了防止每次加载的代码太多了，所以不提供 MD5 方法, 需要从参数传 md5Str
-    window._getOnloadQueryStr = function (functionOrCodeStr, paramsObj, url, runName, md5Str) {
-        const urlObj = new URL(url || location.href);
-        if (runName) {
-            // 用来描述这段代码有什么功能
-            urlObj.searchParams.set('__runJsCode__runName', encodeURIComponent(runName));
+    if (!window._getOnloadQueryStr) {
+        // 功能: 把代码转化为 base64 放到 URL 参数里面，后续打开 URL 的时候，就自动执行 functionOrCodeStr 代码, 如果代码太长了或者怕代码泄露，可以把代码转为 md5
+        window._getOnloadQueryStr = function (functionOrCodeStr, paramsObj, url, runName, md5Str) {
+            if (!functionOrCodeStr && !md5Str) {
+                return console.error('functionOrCodeStr 和 md5Str 参数不能都为空');
+            }
+            const urlObj = new URL(url || location.href);
+            if (runName) {
+                // 用来描述这段代码有什么功能
+                urlObj.searchParams.set('__runJsCode__runName', encodeURIComponent(runName));
+            }
+            if (md5Str) {
+                urlObj.searchParams.delete('__runJsCode__onload_callback');
+                urlObj.searchParams.set('__runJsCode__onload_md5', md5Str);
+            } else {
+                urlObj.searchParams.delete('__runJsCode__onload_md5');
+                urlObj.searchParams.set('__runJsCode__onload_callback', btoa(encodeURIComponent(functionOrCodeStr)));
+            }
+            if (paramsObj !== undefined) {
+                urlObj.searchParams.set('__runJsCode__callback_params', btoa(encodeURIComponent(JSON.stringify(paramsObj))));
+            }
+            return urlObj.toString();
         }
-        if (md5Str) {
-            urlObj.searchParams.delete('__runJsCode__onload_callback');
-            urlObj.searchParams.set('__runJsCode__onload_md5', md5Str);
-        } else {
-            urlObj.searchParams.delete('__runJsCode__onload_md5');
-            urlObj.searchParams.set('__runJsCode__onload_callback', btoa(encodeURIComponent(functionOrCodeStr)));
+    }
+
+    if (!window._sendBrowserNotification) {
+        window._sendBrowserNotification = async function (title = '您有一条新消息', {
+            body = '',
+            tag = `browser-notification-${Date.now()}`,
+            icon = '',
+        } = {}) {
+            if (!('Notification' in window)) {
+                throw new Error('当前浏览器不支持系统通知');
+            }
+
+            if (Notification.permission === 'default') {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') throw new Error('用户未授权发送通知');
+            }
+
+            if (Notification.permission === 'denied') {
+                throw new Error('通知权限已被禁止，请在浏览器设置中开启');
+            }
+
+            const notificationOptions = { body, tag };
+            if (icon) notificationOptions.icon = icon;
+
+            const notification = new Notification(title, notificationOptions);
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+            };
+
+            window.setTimeout(() => notification.close(), 8000);
         }
-        if (paramsObj !== undefined) {
-            urlObj.searchParams.set('__runJsCode__callback_params', btoa(encodeURIComponent(JSON.stringify(paramsObj))));
-        }
-        return urlObj.toString();
     }
 
 }
