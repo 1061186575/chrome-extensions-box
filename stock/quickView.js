@@ -320,15 +320,15 @@ async function renderBTC() {
     if (NDXItem) {
         NDXContent = genTr({
             value: NDXItem.name,
-            url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&token=ed8644c9d251add88e27b65506f6e5da&nid=100.NDX&timespan=${get10LenTime()}`,
+            url: `https://webquotepic.eastmoney.com/GetPic.aspx?imageType=r&token=ed8644c9d251add88e27b65506f6e5da&nid=100.NDX100&timespan=${get10LenTime()}`,
             action: `showMinImage`,
         }, {
             value: NDXItem.value,
-            url: `https://webquoteklinepic.eastmoney.com/GetPic.aspx?nid=100.NDX&type=&unitWidth=-6&ef=&formula=KDJ&imageType=KXL&timespan=${get10LenTime()}`,
+            url: `https://webquoteklinepic.eastmoney.com/GetPic.aspx?nid=100.NDX100&type=&unitWidth=-6&ef=&formula=KDJ&imageType=KXL&timespan=${get10LenTime()}`,
             action: `showDayImage`,
         }, {
             value: NDXItem.ratio + '%',
-            url: `https://quote.eastmoney.com/gb/zsNDX.html`,
+            url: `https://quote.eastmoney.com/gb/zsNDX100.html`,
             action: `open`,
         })
     }
